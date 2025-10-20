@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/favorite_provider.dart';
+import '../../models/bouquet.dart';
+import '../../models/cart_item.dart';
+import '../../services/firebase_service.dart';
 import '../../widgets/build_product_image.dart';
 import '../../widgets/order_confirmation_dialog.dart';
 import '../../utils/helpers.dart';
@@ -36,7 +39,6 @@ class _DetailPageState extends State<DetailPage> {
   }
 
   void _buyNow() {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
     final cart = Provider.of<CartProvider>(context, listen: false);
     final total = widget.bouquet.price * quantity;
     
@@ -72,16 +74,18 @@ class _DetailPageState extends State<DetailPage> {
               cart.removeItem(item.bouquet.id);
             }
             
+            if (!mounted) return;
             Navigator.popUntil(context, (route) => route.isFirst);
             
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Pesanan berhasil dibuat!'),
+              const SnackBar(
+                content: Text('Pesanan berhasil dibuat!'),
                 backgroundColor: AppColors.primary,
                 behavior: SnackBarBehavior.floating,
               ),
             );
           } catch (e) {
+            if (!mounted) return;
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -119,11 +123,11 @@ class _DetailPageState extends State<DetailPage> {
                       child: const Icon(Icons.arrow_back_ios_new, size: 20),
                     ),
                   ),
-                  const Text('Detail Product', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  const Text('Detail Produk', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                   GestureDetector(
                     onTap: () async {
                       await favoriteProvider.toggleFavorite(widget.bouquet.id);
-                      if (!isFavorite) {
+                      if (!isFavorite && mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: const Text('Ditambahkan ke favorit!'),
@@ -222,7 +226,7 @@ class _DetailPageState extends State<DetailPage> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Quantity:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                              const Text('Jumlah:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 4),
                                 decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(12)),
@@ -245,7 +249,7 @@ class _DetailPageState extends State<DetailPage> {
                                     cart.addItem(widget.bouquet, quantity);
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: const Text('Added to cart!'), 
+                                        content: const Text('Ditambahkan ke keranjang!'), 
                                         backgroundColor: AppColors.primary, 
                                         behavior: SnackBarBehavior.floating, 
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
@@ -267,7 +271,7 @@ class _DetailPageState extends State<DetailPage> {
                                     children: [
                                       Icon(Icons.shopping_cart_outlined),
                                       SizedBox(width: 8),
-                                      Text('Add to Cart', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                      Text('Tambah Keranjang', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                     ],
                                   ),
                                 ),
@@ -287,7 +291,7 @@ class _DetailPageState extends State<DetailPage> {
                                     children: [
                                       Icon(Icons.shopping_bag_outlined, color: Colors.white),
                                       SizedBox(width: 8),
-                                      Text('Buy Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                                      Text('Beli Sekarang', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                                     ],
                                   ),
                                 ),
