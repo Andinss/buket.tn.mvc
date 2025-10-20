@@ -28,6 +28,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     Future.delayed(Duration.zero, () {
+      // ignore: unused_local_variable
       final auth = Provider.of<AuthProvider>(context, listen: false);
       if (mounted) setState(() {});
     });
