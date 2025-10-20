@@ -453,18 +453,73 @@ class AuthProvider with ChangeNotifier {
   User? user;
   String role = '';
   bool initializing = true;
+  // === PERUBAHAN 1: Tambah data profil user ===
+  String phoneNumber = '';
+  String address = '';
+  String paymentMethod = 'Credit Card';
 
   AuthProvider(this.service) {
     service.auth.authStateChanges().listen((u) async {
       user = u;
       if (user != null) {
         role = await service.getUserRole(user!.uid) ?? '';
+        // === PERUBAHAN 2: Load data profil tambahan ===
+        await _loadUserProfile(user!.uid);
       } else {
         role = '';
+        // === PERUBAHAN 3: Reset data profil ===
+        phoneNumber = '';
+        address = '';
+        paymentMethod = 'Credit Card';
       }
       initializing = false;
       notifyListeners();
     });
+  }
+
+  // === PERUBAHAN 4: Method untuk load data profil ===
+  Future<void> _loadUserProfile(String uid) async {
+    try {
+      final userDoc = await service.db.collection('users').doc(uid).get();
+      if (userDoc.exists) {
+        final data = userDoc.data()!;
+        phoneNumber = data['phoneNumber']?.toString() ?? '';
+        address = data['address']?.toString() ?? '';
+        paymentMethod = data['paymentMethod']?.toString() ?? 'Credit Card';
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error loading user profile: $e');
+    }
+  }
+
+  // === PERUBAHAN 5: Method untuk update profil ===
+  Future<void> updateProfile(String name, String phone, String address, String paymentMethod) async {
+    if (user == null) return;
+    
+    try {
+      // Update display name di Firebase Auth
+      await user!.updateDisplayName(name);
+      
+      // Update data tambahan di Firestore
+      await service.db.collection('users').doc(user!.uid).set({
+        'displayName': name,
+        'phoneNumber': phone,
+        'address': address,
+        'paymentMethod': paymentMethod,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      
+      // Update local state
+      this.phoneNumber = phone;
+      this.address = address;
+      this.paymentMethod = paymentMethod;
+      
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error updating profile: $e');
+      rethrow;
+    }
   }
 
   Future<void> signInWithEmail(String email, String password) async {
@@ -1051,6 +1106,16 @@ class _HomePageState extends State<HomePage> {
   final FocusNode _searchFocusNode = FocusNode();
 
   @override
+  void initState() {
+    super.initState();
+    // === PERUBAHAN 1: Delay untuk memastikan data user sudah terload ===
+    Future.delayed(Duration.zero, () {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
@@ -1062,6 +1127,13 @@ class _HomePageState extends State<HomePage> {
     final auth = Provider.of<AuthProvider>(context);
     final allBouquets = Provider.of<BouquetProvider>(context).bouquets;
     final favoriteProvider = Provider.of<FavoriteProvider>(context);
+
+    // === PERUBAHAN 2: Ambil nama user dengan benar ===
+    String displayName = auth.user?.displayName ?? 'User';
+    // Jika displayName masih 'User' tapi ada email, gunakan bagian sebelum @
+    if (displayName == 'User' && auth.user?.email != null) {
+      displayName = auth.user!.email!.split('@').first;
+    }
 
     // Filter berdasarkan search query
     final filteredBouquets = allBouquets.where((b) =>
@@ -1076,15 +1148,14 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header - Fixed (UPDATED: Hapus Jakarta, INA)
+            // Header - Fixed (=== PERUBAHAN 3: Tampilkan nama user yang benar ===)
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // UPDATED: Hanya Hello Username (Bold)
                   Text(
-                    'Hello ${auth.user?.displayName?.split(' ').first ?? 'User'}',
+                    'Hello ${displayName.split(' ').first}',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -1564,6 +1635,7 @@ class FavoritePage extends StatelessWidget {
 }
 
 // ==================== DETAIL PAGE ====================
+// ==================== DETAIL PAGE ====================
 class DetailPage extends StatefulWidget {
   final Bouquet bouquet;
   const DetailPage({super.key, required this.bouquet});
@@ -1589,31 +1661,67 @@ class _DetailPageState extends State<DetailPage> {
     super.dispose();
   }
 
+  // === PERUBAHAN 1: Ganti method _buyNow dengan dialog konfirmasi ===
   void _buyNow() {
-    final cart = Provider.of<CartProvider>(context, listen: false);
     final auth = Provider.of<AuthProvider>(context, listen: false);
+    final cart = Provider.of<CartProvider>(context, listen: false);
+    final total = widget.bouquet.price * quantity;
     
-    cart.addItem(widget.bouquet, quantity);
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(children: [Icon(Icons.check_circle, color: Color(0xFFFF6B9D), size: 32), SizedBox(width: 12), Text('Order Placed!')]),
-        content: const Text('Your order is being processed.\nThank you for shopping! 🌹'),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              if (auth.user != null) {
-                final service = FirebaseService();
-                await service.placeOrder(auth.user!.uid, [CartItem(bouquet: widget.bouquet, quantity: quantity)], (widget.bouquet.price * quantity).toDouble());
-              }
-              cart.clear();
-              Navigator.popUntil(context, (route) => route.isFirst);
-            },
-            child: const Text('OK'),
-          ),
-        ],
+    // Tampilkan dialog konfirmasi pesanan dengan detail lengkap
+    _showOrderConfirmationDialog([CartItem(bouquet: widget.bouquet, quantity: quantity)], total, cart);
+  }
+
+  // === PERUBAHAN 2: Method untuk menampilkan dialog konfirmasi pesanan ===
+ void _showOrderConfirmationDialog(List<CartItem> items, int total, CartProvider cart) {
+  final auth = Provider.of<AuthProvider>(context, listen: false);
+  
+  showDialog(
+    context: context,
+    builder: (context) => OrderConfirmationDialog(
+      items: items,
+      total: total,
+      auth: auth,
+      onConfirm: (phone, String address, String city, String postalCode, String paymentMethod) async {
+          // Simpan data yang diinput user ke profil
+          if (phone.isNotEmpty) {
+            await auth.updateProfile(
+              auth.user?.displayName ?? 'User',
+              phone,
+              address, // Simpan alamat lengkap saja di profil
+              paymentMethod
+            );
+          }
+          
+          // Proses order
+          final service = FirebaseService();
+          try {
+            await service.placeOrder(auth.user!.uid, items, total.toDouble());
+            
+            // Remove selected items dari cart
+            for (var item in items) {
+              cart.removeItem(item.bouquet.id);
+            }
+            
+            Navigator.popUntil(context, (route) => route.isFirst);
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Pesanan berhasil dibuat!'),
+                backgroundColor: const Color(0xFFFF6B9D),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          } catch (e) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error: $e'),
+                backgroundColor: Colors.red,
+
+              ),
+            );
+          }
+        },
       ),
     );
   }
@@ -1793,7 +1901,7 @@ class _DetailPageState extends State<DetailPage> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: ElevatedButton(
-                                  onPressed: _buyNow,
+                                  onPressed: _buyNow, // === PERUBAHAN 3: Panggil method _buyNow yang baru ===
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFFFF6B9D),
                                     padding: const EdgeInsets.symmetric(vertical: 18),
@@ -1838,6 +1946,59 @@ class CartPage extends StatefulWidget {
 class _CartPageState extends State<CartPage> {
   Map<String, bool> selectedItems = {};
 
+  void _showOrderConfirmationDialog(List<CartItem> items, int total, CartProvider cart) {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    
+    showDialog(
+      context: context,
+      builder: (context) => OrderConfirmationDialog(
+        items: items,
+        total: total,
+        auth: auth,
+        onConfirm: (phone, String address, String city, String postalCode, String paymentMethod) async {
+          // Simpan data yang diinput user ke profil
+          if (phone.isNotEmpty) {
+            await auth.updateProfile(
+              auth.user?.displayName ?? 'User',
+              phone,
+              address, // Simpan alamat lengkap saja di profil
+              paymentMethod
+            );
+          }
+          
+          // Proses order
+          final service = FirebaseService();
+          try {
+            await service.placeOrder(auth.user!.uid, items, total.toDouble());
+            
+            // Remove selected items dari cart
+            for (var item in items) {
+              cart.removeItem(item.bouquet.id);
+            }
+            
+            Navigator.popUntil(context, (route) => route.isFirst);
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Pesanan berhasil dibuat!'),
+                backgroundColor: const Color(0xFFFF6B9D),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          } catch (e) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = Provider.of<CartProvider>(context);
@@ -1850,10 +2011,9 @@ class _CartPageState extends State<CartPage> {
       }
     }
 
-    // Check if all items are selected  ← TAMBAH DARI SINI
+    // Check if all items are selected
     final allSelected = cart.items.isNotEmpty && 
         cart.items.every((item) => selectedItems[item.bouquet.id] == true);
-    // ← SAMPAI SINI
 
     // Calculate total selected items
     final selectedCount = selectedItems.values.where((v) => v).length;
@@ -1909,7 +2069,7 @@ class _CartPageState extends State<CartPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(  // ← UBAH JADI ROW
+                        Row(
                           children: [
                             const Text('Cart', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                             const SizedBox(width: 12),
@@ -1920,7 +2080,6 @@ class _CartPageState extends State<CartPage> {
                             ),
                           ],
                         ),
-                        // ← TAMBAH DARI SINI: Select All Checkbox
                         GestureDetector(
                           onTap: () {
                             setState(() {
@@ -1946,7 +2105,6 @@ class _CartPageState extends State<CartPage> {
                             ],
                           ),
                         ),
-                        // ← SAMPAI SINI
                       ],
                     ),
                   ),
@@ -2075,33 +2233,8 @@ class _CartPageState extends State<CartPage> {
                               final selectedItems = cart.items.where((item) => this.selectedItems[item.bouquet.id] == true).toList();
                               final total = selectedItems.fold<int>(0, (sum, item) => sum + (item.price * item.quantity));
 
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                  title: const Row(children: [Icon(Icons.check_circle, color: Color(0xFFFF6B9D), size: 32), SizedBox(width: 12), Text('Order Placed!')]),
-                                  content: Text('${selectedCount} produk akan di-order.\nTotal: ${formatRupiah(total)}\n\nTerima kasih telah berbelanja! 🌹'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () async {
-                                        if (auth.user != null) {
-                                          final service = FirebaseService();
-                                          await service.placeOrder(auth.user!.uid, selectedItems, total.toDouble());
-                                        }
-                                        
-                                        // Remove selected items dari cart
-                                        for (var item in selectedItems) {
-                                          cart.removeItem(item.bouquet.id);
-                                        }
-                                        
-                                        Navigator.popUntil(context, (route) => route.isFirst);
-                                      },
-                                      child: const
-                                      Text('OK'),
-                                    ),
-                                  ],
-                                ),
-                              );
+                              // Tampilkan dialog konfirmasi pesanan
+                              _showOrderConfirmationDialog(selectedItems, total, cart);
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: selectedCount == 0 ? Colors.grey : const Color(0xFFFF6B9D),
@@ -2110,7 +2243,7 @@ class _CartPageState extends State<CartPage> {
                               elevation: 0,
                             ),
                             child: Text(
-                              selectedCount == 0 ? 'Pilih Produk Terlebih Dahulu' : 'Pay Now (${selectedCount})',
+                              selectedCount == 0 ? 'Pilih Produk Terlebih Dahulu' : 'Checkout (${selectedCount})',
                               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                             ),
                           ),
@@ -2184,10 +2317,15 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
               ),
       ),
       body: auth.user == null
-          ? const Center(child: Text('Please login to view orders'))
+          ? const Center(child: Text('Silakan login untuk melihat pesanan'))
           : StreamBuilder<List<Order>>(
               stream: service.getUserOrders(auth.user!.uid),
               builder: (context, snapshot) {
+                // PERBAIKAN: Langsung tampilkan pesan "Belum Ada Pesanan" jika data kosong
+                if (snapshot.hasData && snapshot.data!.isEmpty) {
+                  return _buildEmptyOrders();
+                }
+
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child: Column(
@@ -2218,6 +2356,11 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
 
                 final allOrders = snapshot.data ?? [];
                 
+                // Jika tidak ada pesanan, tampilkan pesan "Belum Ada Pesanan"
+                if (allOrders.isEmpty) {
+                  return _buildEmptyOrders();
+                }
+
                 // Kategorikan pesanan berdasarkan status
                 final placedOrders = allOrders.where((o) => o.status == 'placed').toList();
                 final processingOrders = allOrders.where((o) => o.status == 'processing').toList();
@@ -2241,6 +2384,43 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                 );
               },
             ),
+    );
+  }
+
+  Widget _buildEmptyOrders() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(40),
+            decoration: const BoxDecoration(color: Color(0xFFFFE8F0), shape: BoxShape.circle),
+            child: const Icon(Icons.receipt_long_outlined, size: 80, color: Color(0xFFFF6B9D)),
+          ),
+          const SizedBox(height: 30),
+          const Text('Belum Ada Pesanan', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
+          const SizedBox(height: 12),
+          Text('Belum ada riwayat pesanan', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+          const SizedBox(height: 30),
+          ElevatedButton(
+            onPressed: () {
+              final mainNavState = context.findAncestorStateOfType<_MainNavigationState>();
+              if (mainNavState != null) {
+                mainNavState.setState(() {
+                  mainNavState._selectedIndex = 0;
+                });
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B9D),
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              elevation: 0,
+            ),
+            child: const Text('Mulai Belanja', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -3464,6 +3644,13 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
     
+    // Ambil nama user dengan benar
+    String displayName = auth.user?.displayName ?? 'User';
+    // Jika displayName masih 'User' tapi ada email, gunakan bagian sebelum @
+    if (displayName == 'User' && auth.user?.email != null) {
+      displayName = auth.user!.email!.split('@').first;
+    }
+    
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
@@ -3506,7 +3693,8 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
             const SizedBox(height: 16),
-            Text(auth.user?.displayName ?? 'User', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF831843))),
+            // Tampilkan nama user yang benar
+            Text(displayName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF831843))),
             const SizedBox(height: 4),
             Text(auth.user?.email ?? 'email@example.com', style: const TextStyle(fontSize: 14, color: Color(0xFF9CA3AF))),
             const SizedBox(height: 8),
@@ -3549,17 +3737,24 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Column(
                 children: [
                   _buildMenuTile(
+                    icon: Icons.phone,
+                    title: 'Nomor Telepon',
+                    subtitle: auth.phoneNumber.isEmpty ? 'Tambahkan nomor telepon' : auth.phoneNumber,
+                    onTap: () => _showPhoneDialog(context, auth),
+                  ),
+                  const Divider(height: 1),
+                  _buildMenuTile(
                     icon: Icons.location_on,
                     title: 'Alamat',
-                    subtitle: 'Kelola alamat pengiriman',
-                    onTap: () => _showAddressDialog(context),
+                    subtitle: auth.address.isEmpty ? 'Kelola alamat pengiriman' : auth.address,
+                    onTap: () => _showAddressDialog(context, auth),
                   ),
                   const Divider(height: 1),
                   _buildMenuTile(
                     icon: Icons.payment,
                     title: 'Metode Pembayaran',
-                    subtitle: 'Kelola metode pembayaran',
-                    onTap: () => _showPaymentDialog(context),
+                    subtitle: auth.paymentMethod.isEmpty ? 'Kelola metode pembayaran' : auth.paymentMethod,
+                    onTap: () => _showPaymentDialog(context, auth),
                   ),
                   const Divider(height: 1),
                   _buildMenuTile(
@@ -3632,50 +3827,31 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _showEditProfileDialog(BuildContext context, AuthProvider auth) {
-    final nameController = TextEditingController(text: auth.user?.displayName ?? '');
+  // Method untuk edit nomor telepon
+  void _showPhoneDialog(BuildContext context, AuthProvider auth) {
+    final phoneController = TextEditingController(text: auth.phoneNumber);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Edit Profile'),
+        title: const Text('Nomor Telepon'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: nameController,
+              controller: phoneController,
               decoration: InputDecoration(
-                labelText: 'Nama Lengkap',
-                prefixIcon: const Icon(Icons.person, color: Color(0xFFDB2777)),
+                labelText: 'Nomor Telepon',
+                hintText: 'Contoh: 081234567890',
+                prefixIcon: const Icon(Icons.phone, color: Color(0xFFDB2777)),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFCE7F3),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.email, color: Color(0xFFDB2777), size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Email', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                        Text(auth.user?.email ?? '-', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+              keyboardType: TextInputType.phone,
             ),
             const SizedBox(height: 12),
-            const Text('Email tidak dapat diubah untuk keamanan', style: TextStyle(fontSize: 11, color: Colors.grey, fontStyle: FontStyle.italic)),
+            const Text('Nomor telepon akan digunakan untuk konfirmasi pesanan', 
+                style: TextStyle(fontSize: 11, color: Colors.grey)),
           ],
         ),
         actions: [
@@ -3685,18 +3861,23 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           ElevatedButton(
             onPressed: () async {
-              if (nameController.text.isEmpty) {
+              if (phoneController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Nama tidak boleh kosong'), backgroundColor: Colors.red),
+                  const SnackBar(content: Text('Nomor telepon tidak boleh kosong'), backgroundColor: Colors.red),
                 );
                 return;
               }
 
               try {
-                await auth.user?.updateDisplayName(nameController.text);
+                await auth.updateProfile(
+                  auth.user?.displayName ?? 'User',
+                  phoneController.text,
+                  auth.address,
+                  auth.paymentMethod
+                );
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profil berhasil diperbarui!'), backgroundColor: Color(0xFFDB2777)),
+                  const SnackBar(content: Text('Nomor telepon berhasil diperbarui!'), backgroundColor: Color(0xFFDB2777)),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -3712,8 +3893,9 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _showAddressDialog(BuildContext context) {
-    final addressController = TextEditingController();
+  // PERBAIKAN: Method untuk edit alamat - sekarang menyimpan kota dan kode pos
+  void _showAddressDialog(BuildContext context, AuthProvider auth) {
+    final addressController = TextEditingController(text: auth.address);
     final cityController = TextEditingController();
     final postalCodeController = TextEditingController();
 
@@ -3721,7 +3903,7 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Tambah Alamat'),
+        title: const Text('Alamat Pengiriman'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -3750,7 +3932,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Kode Pos',
-                  prefixIcon: const Icon(Icons.mail, color: Color(0xFFDB2777)),
+                  prefixIcon: const Icon(Icons.markunread_mailbox, color: Color(0xFFDB2777)),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
@@ -3763,18 +3945,39 @@ class _ProfilePageState extends State<ProfilePage> {
             child: const Text('Batal'),
           ),
           ElevatedButton(
-            onPressed: () {
-              if (addressController.text.isEmpty || cityController.text.isEmpty) {
+            onPressed: () async {
+              if (addressController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Semua field harus diisi'), backgroundColor: Colors.red),
+                  const SnackBar(content: Text('Alamat tidak boleh kosong'), backgroundColor: Colors.red),
                 );
                 return;
               }
 
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Alamat berhasil disimpan!'), backgroundColor: Color(0xFFDB2777)),
-              );
+              try {
+                final service = FirebaseService();
+                // PERBAIKAN: Simpan alamat lengkap dengan kota dan kode pos ke Firestore
+                await service.db.collection('users').doc(auth.user!.uid).set({
+                  'displayName': auth.user?.displayName ?? 'User',
+                  'phoneNumber': auth.phoneNumber,
+                  'address': addressController.text,
+                  'city': cityController.text,
+                  'postalCode': postalCodeController.text,
+                  'paymentMethod': auth.paymentMethod,
+                  'updatedAt': FieldValue.serverTimestamp(),
+                }, SetOptions(merge: true));
+
+                // Update local state
+                auth.address = addressController.text;
+                
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Alamat berhasil diperbarui!'), backgroundColor: Color(0xFFDB2777)),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDB2777)),
             child: const Text('Simpan', style: TextStyle(color: Colors.white)),
@@ -3784,56 +3987,142 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _showPaymentDialog(BuildContext context) {
+  // Method untuk edit metode pembayaran
+  void _showPaymentDialog(BuildContext context, AuthProvider auth) {
+    String selectedMethod = auth.paymentMethod.isNotEmpty ? 
+        (auth.paymentMethod == 'Credit Card' ? 'Transfer Bank' : auth.paymentMethod) 
+        : 'Transfer Bank';
+    final List<String> paymentMethods = [
+      'Transfer Bank',
+      'E-Wallet',
+      'Bayar di Tempat (COD)'
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('Metode Pembayaran'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ...paymentMethods.map((method) => RadioListTile<String>(
+                  title: Text(method),
+                  value: method,
+                  groupValue: selectedMethod,
+                  onChanged: (value) => setState(() => selectedMethod = value!),
+                  activeColor: const Color(0xFFDB2777),
+                )),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Batal'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  try {
+                    await auth.updateProfile(
+                      auth.user?.displayName ?? 'User',
+                      auth.phoneNumber,
+                      auth.address,
+                      selectedMethod
+                    );
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Metode pembayaran berhasil diperbarui!'), backgroundColor: Color(0xFFDB2777)),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDB2777)),
+                child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showEditProfileDialog(BuildContext context, AuthProvider auth) {
+    final nameController = TextEditingController(text: auth.user?.displayName ?? '');
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Metode Pembayaran'),
+        title: const Text('Edit Profile'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildPaymentOption('Credit Card', 'Visa, Mastercard, Amex'),
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: 'Nama Lengkap',
+                  prefixIcon: const Icon(Icons.person, color: Color(0xFFDB2777)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
               const SizedBox(height: 12),
-              _buildPaymentOption('Bank Transfer', 'Transfer ke rekening kami'),
+              TextField(
+                enabled: false,
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: const Icon(Icons.email, color: Colors.grey),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                controller: TextEditingController(text: auth.user?.email ?? ''),
+              ),
               const SizedBox(height: 12),
-              _buildPaymentOption('E-Wallet', 'GCash, OVO, DANA, dll'),
-              const SizedBox(height: 12),
-              _buildPaymentOption('COD', 'Bayar saat barang tiba'),
+              const Text(
+                'Untuk mengubah nomor telepon, alamat, dan metode pembayaran, silakan gunakan menu yang tersedia di halaman profile.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Tutup'),
+            child: const Text('Batal'),
           ),
-        ],
-      ),
-    );
-  }
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Nama tidak boleh kosong'), backgroundColor: Colors.red),
+                );
+                return;
+              }
 
-  Widget _buildPaymentOption(String title, String subtitle) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFCE7F3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFDB2777), width: 1),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle, color: Color(0xFFDB2777), size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                Text(subtitle, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-              ],
-            ),
+              try {
+                await auth.updateProfile(
+                  nameController.text,
+                  auth.phoneNumber,
+                  auth.address,
+                  auth.paymentMethod
+                );
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Profile berhasil diperbarui!'), backgroundColor: Color(0xFFDB2777)),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDB2777)),
+            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -4072,6 +4361,570 @@ class _ProfilePageState extends State<ProfilePage> {
               Navigator.pop(context);
             },
             child: const Text('Keluar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== ORDER CONFIRMATION DIALOG ====================
+class OrderConfirmationDialog extends StatefulWidget {
+  final List<CartItem> items;
+  final int total;
+  final AuthProvider auth;
+  final Function(String phone, String address, String city, String postalCode, String paymentMethod) onConfirm;
+
+  const OrderConfirmationDialog({
+    super.key,
+    required this.items,
+    required this.total,
+    required this.auth,
+    required this.onConfirm,
+  });
+
+  @override
+  State<OrderConfirmationDialog> createState() => _OrderConfirmationDialogState();
+}
+
+class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _cityController = TextEditingController();
+  final TextEditingController _postalCodeController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
+  
+  String _selectedPaymentMethod = 'Transfer Bank';
+  final List<String> _paymentMethods = [
+    'Transfer Bank',
+    'E-Wallet',
+    'Bayar di Tempat (COD)'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  // PERBAIKAN: Method untuk load data user dari Firestore
+  Future<void> _loadUserData() async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.auth.user!.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data()!;
+        setState(() {
+          _nameController.text = data['displayName']?.toString() ?? '';
+          _phoneController.text = data['phoneNumber']?.toString() ?? '';
+          _addressController.text = data['address']?.toString() ?? '';
+          _cityController.text = data['city']?.toString() ?? '';
+          _postalCodeController.text = data['postalCode']?.toString() ?? '';
+          
+          String paymentMethod = data['paymentMethod']?.toString() ?? 'Transfer Bank';
+          _selectedPaymentMethod = paymentMethod.isEmpty ? 'Transfer Bank' : paymentMethod;
+        });
+      } else {
+        // Jika dokumen tidak ada, isi dari auth provider
+        setState(() {
+          _nameController.text = widget.auth.user?.displayName ?? '';
+          _phoneController.text = widget.auth.phoneNumber;
+          _addressController.text = widget.auth.address;
+          _selectedPaymentMethod = widget.auth.paymentMethod.isNotEmpty 
+              ? (widget.auth.paymentMethod == 'Credit Card' ? 'Transfer Bank' : widget.auth.paymentMethod)
+              : 'Transfer Bank';
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user data: $e');
+      // Fallback ke auth provider
+      setState(() {
+        _nameController.text = widget.auth.user?.displayName ?? '';
+        _phoneController.text = widget.auth.phoneNumber;
+        _addressController.text = widget.auth.address;
+        _selectedPaymentMethod = widget.auth.paymentMethod.isNotEmpty 
+            ? (widget.auth.paymentMethod == 'Credit Card' ? 'Transfer Bank' : widget.auth.paymentMethod)
+            : 'Transfer Bank';
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    _cityController.dispose();
+    _postalCodeController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      insetPadding: const EdgeInsets.all(20),
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(maxHeight: 600),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.shopping_cart_checkout, color: Color(0xFFFF6B9D), size: 24),
+                  SizedBox(width: 12),
+                  Text(
+                    'Checkout',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2D3142),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    
+                    // Informasi Pengiriman Section
+                    _buildSectionHeader('Informasi Pengiriman'),
+                    const SizedBox(height: 16),
+                    
+                    // Nama Penerima
+                    _buildFormField(
+                      label: 'Nama Penerima',
+                      controller: _nameController,
+                      icon: Icons.person,
+                      hintText: 'Masukkan nama penerima',
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Nomor Telepon
+                    _buildFormField(
+                      label: 'Nomor Telepon',
+                      controller: _phoneController,
+                      icon: Icons.phone,
+                      hintText: 'Contoh: 081234567890',
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Alamat Lengkap
+                    _buildFormField(
+                      label: 'Alamat Lengkap',
+                      controller: _addressController,
+                      icon: Icons.location_on,
+                      hintText: 'Masukkan alamat lengkap',
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Kota/Kabupaten
+                    _buildFormField(
+                      label: 'Kota/Kabupaten',
+                      controller: _cityController,
+                      icon: Icons.location_city,
+                      hintText: 'Masukkan kota/kabupaten',
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Kode Pos
+                    _buildFormField(
+                      label: 'Kode Pos',
+                      controller: _postalCodeController,
+                      icon: Icons.markunread_mailbox,
+                      hintText: 'Masukkan kode pos',
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Catatan (Opsional)
+                    _buildFormField(
+                      label: 'Catatan (Opsional)',
+                      controller: _notesController,
+                      icon: Icons.note,
+                      hintText: 'Tambahkan catatan untuk kurir',
+                      maxLines: 2,
+                    ),
+                    
+                    const SizedBox(height: 20),
+                    _buildDivider(),
+                    const SizedBox(height: 20),
+                    
+                    // Metode Pembayaran Section
+                    _buildSectionHeader('Metode Pembayaran'),
+                    const SizedBox(height: 16),
+                    
+                    // Payment Methods
+                    ..._buildPaymentMethods(),
+                    
+                    const SizedBox(height: 20),
+                    _buildDivider(),
+                    const SizedBox(height: 20),
+                    
+                    // Ringkasan Pesanan Section
+                    _buildSectionHeader('Ringkasan Pesanan'),
+                    const SizedBox(height: 16),
+                    
+                    // Order Items
+                    _buildOrderSummary(),
+                    
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Footer dengan Total dan Tombol
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Total
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Total',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2D3142),
+                        ),
+                      ),
+                      Text(
+                        formatRupiah(widget.total),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFFF6B9D),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Tombol Bayar
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _nameController.text.isEmpty || 
+                                _phoneController.text.isEmpty || 
+                                _addressController.text.isEmpty
+                          ? null
+                          : () {
+                              widget.onConfirm(
+                                _phoneController.text, 
+                                _addressController.text,
+                                _cityController.text,
+                                _postalCodeController.text,
+                                _selectedPaymentMethod
+                              );
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF6B9D),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                      child: Text(
+                        'Bayar ${formatRupiah(widget.total)}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFF2D3142),
+      ),
+    );
+  }
+
+  Widget _buildFormField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    String? hintText,
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF2D3142),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            hintText: hintText,
+            prefixIcon: Icon(icon, color: const Color(0xFFFF6B9D)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFFF6B9D), width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDivider() {
+    return Divider(
+      color: Colors.grey.shade300,
+      thickness: 1,
+    );
+  }
+
+  List<Widget> _buildPaymentMethods() {
+    return _paymentMethods.map((method) {
+      final bool isSelected = _selectedPaymentMethod == method;
+      
+      String description = '';
+      if (method == 'Transfer Bank') {
+        description = 'BCA, BNI, Mandiri, BRI';
+      } else if (method == 'E-Wallet') {
+        description = 'Gopay, OVO, Dana, LinkAja';
+      } else if (method == 'Bayar di Tempat (COD)') {
+        description = 'Bayar saat barang diterima';
+      }
+      
+      return GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedPaymentMethod = method;
+          });
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFFFFF0F5) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? const Color(0xFFFF6B9D) : Colors.grey.shade300,
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSelected ? const Color(0xFFFF6B9D) : Colors.transparent,
+                  border: Border.all(
+                    color: isSelected ? const Color(0xFFFF6B9D) : Colors.grey.shade400,
+                    width: 2,
+                  ),
+                ),
+                child: isSelected
+                    ? const Icon(Icons.check, size: 12, color: Colors.white)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      method,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? const Color(0xFFFF6B9D) : const Color(0xFF2D3142),
+                      ),
+                    ),
+                    if (description.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildOrderSummary() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          const Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: Text(
+                  'Produk',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D3142),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'Subtotal',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D3142),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          ...widget.items.map((item) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    '${item.bouquet.name} × ${item.quantity}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF2D3142),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    formatRupiah(item.price * item.quantity),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF2D3142),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )),
+          
+          const SizedBox(height: 12),
+          _buildDivider(),
+          const SizedBox(height: 12),
+          
+          Row(
+            children: [
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  'Total',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D3142),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  formatRupiah(widget.total),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFFF6B9D),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
