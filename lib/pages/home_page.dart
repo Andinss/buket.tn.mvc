@@ -1,12 +1,12 @@
+import 'package:buket_tn/models/bouquet.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../providers/auth_provider.dart';
-import '../../providers/bouquet_provider.dart';
-import '../../providers/favorite_provider.dart';
-import '../../widgets/build_product_image.dart';
-import '../../utils/helpers.dart';
-import '../../utils/constants.dart';
+import '../providers/auth_provider.dart';
+import '../providers/bouquet_provider.dart';
+import '../providers/cart_provider.dart';
+import '../providers/favorite_provider.dart';
+import '../utils/helpers.dart';
 import 'favorite_page.dart';
 import 'detail_page.dart';
 
@@ -57,12 +57,11 @@ class _HomePageState extends State<HomePage> {
     ).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFFAFAFA),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: Row(
@@ -73,17 +72,17 @@ class _HomePageState extends State<HomePage> {
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: Color(0xFF2D3142),
                     ),
                   ),
                   GestureDetector(
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FavoritePage())),
                     child: Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: const BoxDecoration(color: AppColors.accentPink, shape: BoxShape.circle),
+                      decoration: const BoxDecoration(color: Color(0xFFFFE8F0), shape: BoxShape.circle),
                       child: Stack(
                         children: [
-                          const Icon(Icons.favorite, color: AppColors.primary, size: 24),
+                          const Icon(Icons.favorite, color: Color(0xFFFF6B9D), size: 24),
                           if (favoriteProvider.favoriteIds.isNotEmpty)
                             Positioned(
                               right: 0,
@@ -107,7 +106,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             
-            // Search Bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Container(
@@ -148,7 +146,6 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 20),
 
-            // Scrollable Content
             Expanded(
               child: filteredBouquets.isEmpty
                   ? Center(
@@ -157,7 +154,7 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           Icon(Icons.search_off, size: 80, color: Colors.grey.shade300),
                           const SizedBox(height: 16),
-                          const Text('Produk tidak ditemukan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                          const Text('Produk tidak ditemukan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                           const SizedBox(height: 8),
                           Text('Coba cari dengan kata kunci lain', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
                         ],
@@ -165,7 +162,6 @@ class _HomePageState extends State<HomePage> {
                     )
                   : CustomScrollView(
                       slivers: [
-                        // Banner (hanya tampil kalau tidak search)
                         if (searchQuery.isEmpty)
                           SliverToBoxAdapter(
                             child: Padding(
@@ -173,7 +169,7 @@ class _HomePageState extends State<HomePage> {
                               child: Container(
                                 padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
-                                  gradient: const LinearGradient(colors: [AppColors.primary, Color(0xFFFF8FAB)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                                  gradient: const LinearGradient(colors: [Color(0xFFFF6B9D), Color(0xFFFF8FAB)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                                   borderRadius: BorderRadius.circular(25),
                                 ),
                                 child: Row(
@@ -189,7 +185,7 @@ class _HomePageState extends State<HomePage> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-                                            child: const Text('Shop Now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                                            child: const Text('Shop Now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFFF6B9D))),
                                           ),
                                         ],
                                       ),
@@ -203,7 +199,6 @@ class _HomePageState extends State<HomePage> {
                         if (searchQuery.isEmpty)
                           const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-                        // Category Chips (hanya tampil kalau tidak search)
                         if (searchQuery.isEmpty)
                           SliverToBoxAdapter(
                             child: Padding(
@@ -224,7 +219,6 @@ class _HomePageState extends State<HomePage> {
                         
                         const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-                        // Products Grid
                         SliverPadding(
                           padding: const EdgeInsets.symmetric(horizontal: 20.0),
                           sliver: SliverGrid(
@@ -274,8 +268,8 @@ class _HomePageState extends State<HomePage> {
                   child: Container(
                     width: double.infinity,
                     height: 130,
-                    color: AppColors.accentPink,
-                    child: bouquet.images.isNotEmpty ? buildProductImage(bouquet.images[0]) : const Icon(Icons.image, color: AppColors.primary),
+                    color: const Color(0xFFFFE8F0),
+                    child: bouquet.images.isNotEmpty ? buildProductImage(bouquet.images[0]) : const Icon(Icons.image, color: Color(0xFFFF6B9D)),
                   ),
                 ),
                 Positioned(
@@ -289,7 +283,7 @@ class _HomePageState extends State<HomePage> {
                       child: Icon(
                         isFavorite ? Icons.favorite : Icons.favorite_border,
                         size: 18,
-                        color: AppColors.primary,
+                        color: const Color(0xFFFF6B9D),
                       ),
                     ),
                   ),
@@ -304,7 +298,7 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     Text(
                       bouquet.name,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -322,7 +316,7 @@ class _HomePageState extends State<HomePage> {
                         Expanded(
                           child: Text(
                             formatRupiah(bouquet.price),
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFFF6B9D)),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -330,7 +324,7 @@ class _HomePageState extends State<HomePage> {
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                          decoration: const BoxDecoration(color: Color(0xFFFF6B9D), shape: BoxShape.circle),
                           child: const Icon(Icons.add, color: Colors.white, size: 14),
                         ),
                       ],
@@ -353,7 +347,7 @@ class _HomePageState extends State<HomePage> {
         margin: const EdgeInsets.only(right: 10),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white,
+          color: isSelected ? const Color(0xFFFF6B9D) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 3))],
         ),

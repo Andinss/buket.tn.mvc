@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../services/firebase_service.dart';
-import '../utils/constants.dart';
 
 class AuthProvider with ChangeNotifier {
   final FirebaseService service;
@@ -37,13 +36,14 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> _loadUserProfile(String uid) async {
     try {
-      final userData = await service.getUserData(uid);
-      if (userData != null) {
-        phoneNumber = userData['phoneNumber']?.toString() ?? '';
-        address = userData['address']?.toString() ?? '';
-        city = userData['city']?.toString() ?? '';
-        postalCode = userData['postalCode']?.toString() ?? '';
-        paymentMethod = userData['paymentMethod']?.toString() ?? 'Credit Card';
+      final userDoc = await service.db.collection('users').doc(uid).get();
+      if (userDoc.exists) {
+        final data = userDoc.data()!;
+        phoneNumber = data['phoneNumber']?.toString() ?? '';
+        address = data['address']?.toString() ?? '';
+        city = data['city']?.toString() ?? '';
+        postalCode = data['postalCode']?.toString() ?? '';
+        paymentMethod = data['paymentMethod']?.toString() ?? 'Credit Card';
         notifyListeners();
       }
     } catch (e) {
@@ -51,20 +51,13 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> updateProfile(
-    String name, 
-    String phone, 
-    String address, 
-    String city, 
-    String postalCode, 
-    String paymentMethod
-  ) async {
+  Future<void> updateProfile(String name, String phone, String address, String city, String postalCode, String paymentMethod) async {
     if (user == null) return;
     
     try {
       await user!.updateDisplayName(name);
       
-      await service.db.collection(FirestoreCollections.users).doc(user!.uid).set({
+      await service.db.collection('users').doc(user!.uid).set({
         'displayName': name,
         'phoneNumber': phone,
         'address': address,
@@ -107,7 +100,10 @@ class AuthProvider with ChangeNotifier {
     await service.signOut();
   }
 
-  bool get isSeller => role == 'seller';
-  bool get isBuyer => role == 'buyer';
-  bool get isLoggedIn => user != null;
+  Future<void> setRole(String r) async {
+    if (user == null) return;
+    await service.setUserRole(user!.uid, r);
+    role = r;
+    notifyListeners();
+  }
 }

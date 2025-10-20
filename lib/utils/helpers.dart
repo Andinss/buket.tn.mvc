@@ -1,5 +1,6 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'constants.dart';
 
 String formatRupiah(int amount) {
   return 'Rp. ${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
@@ -50,9 +51,59 @@ Color getStatusTextColor(String status) {
   }
 }
 
-String getInitials(String name) {
-  if (name.isEmpty) return 'U';
-  final names = name.split(' ');
-  if (names.length == 1) return names[0][0].toUpperCase();
-  return '${names[0][0]}${names[1][0]}'.toUpperCase();
+Widget buildProductImage(String imageData, {BoxFit fit = BoxFit.cover}) {
+  if (imageData.isEmpty) {
+    return Container(
+      color: const Color(0xFFFFE8F0),
+      child: const Icon(Icons.image, color: Color(0xFFFF6B9D)),
+    );
+  }
+
+  if (imageData.startsWith('http://') || imageData.startsWith('https://')) {
+    return Image.network(
+      imageData,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: const Color(0xFFFFE8F0),
+          child: const Icon(Icons.error, color: Color(0xFFFF6B9D)),
+        );
+      },
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          color: const Color(0xFFFFE8F0),
+          child: const Center(
+            child: SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator(
+                color: Color(0xFFFF6B9D),
+                strokeWidth: 2,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  } else {
+    try {
+      return Image.memory(
+        base64Decode(imageData),
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: const Color(0xFFFFE8F0),
+            child: const Icon(Icons.error, color: Color(0xFFFF6B9D)),
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint('Error decoding Base64: $e');
+      return Container(
+        color: const Color(0xFFFFE8F0),
+        child: const Icon(Icons.broken_image, color: Color(0xFFFF6B9D)),
+      );
+    }
+  }
 }

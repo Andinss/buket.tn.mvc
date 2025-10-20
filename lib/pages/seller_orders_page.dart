@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 
-import '../../services/firebase_service.dart';
-import '../../models/order.dart';
-import '../../utils/helpers.dart';
-import '../../utils/constants.dart';
+import '../services/firebase_service.dart';
+import '../models/order.dart';
+import '../utils/helpers.dart';
 
 class SellerOrdersPage extends StatefulWidget {
   const SellerOrdersPage({super.key});
@@ -34,19 +33,19 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
     final service = FirebaseService();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Pesanan Masuk', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 20)),
+        title: const Text('Pesanan Masuk', style: TextStyle(color: Color(0xFF2D3142), fontWeight: FontWeight.bold, fontSize: 20)),
         centerTitle: true,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),
           child: TabBar(
             controller: _tabController,
             isScrollable: true,
-            indicatorColor: AppColors.primary,
-            labelColor: AppColors.primary,
+            indicatorColor: const Color(0xFFFF6B9D),
+            labelColor: const Color(0xFFFF6B9D),
             unselectedLabelColor: Colors.grey,
             tabAlignment: TabAlignment.start,
             labelPadding: const EdgeInsets.symmetric(horizontal: 8),
@@ -65,7 +64,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
         stream: service.db.collection('orders').orderBy('createdAt', descending: true).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+            return const Center(child: CircularProgressIndicator(color: Color(0xFFFF6B9D)));
           }
 
           if (snapshot.hasError) {
@@ -74,7 +73,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, size: 80, color: AppColors.primary),
+                  const Icon(Icons.error_outline, size: 80, color: Color(0xFFFF6B9D)),
                   const SizedBox(height: 16),
                   const Text('Terjadi Kesalahan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
@@ -101,7 +100,6 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
               }
             }).toList();
 
-            // Kategorikan pesanan berdasarkan status
             final placedOrders = allOrders.where((o) => o.status == 'placed').toList();
             final processingOrders = allOrders.where((o) => o.status == 'processing').toList();
             final shippedOrders = allOrders.where((o) => o.status == 'shipped').toList();
@@ -123,7 +121,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, size: 80, color: AppColors.primary),
+                  const Icon(Icons.error_outline, size: 80, color: Color(0xFFFF6B9D)),
                   const SizedBox(height: 16),
                   const Text('Error Memuat Data', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
@@ -145,11 +143,11 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
           children: [
             Container(
               padding: const EdgeInsets.all(40),
-              decoration: const BoxDecoration(color: AppColors.accentPink, shape: BoxShape.circle),
-              child: const Icon(Icons.receipt_long_outlined, size: 80, color: AppColors.primary),
+              decoration: const BoxDecoration(color: Color(0xFFFFE8F0), shape: BoxShape.circle),
+              child: const Icon(Icons.receipt_long_outlined, size: 80, color: Color(0xFFFF6B9D)),
             ),
             const SizedBox(height: 30),
-            Text(emptyMessage, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+            Text(emptyMessage, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
             const SizedBox(height: 12),
             Text('Belum ada pesanan dengan status ini', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
           ],
@@ -161,7 +159,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
       onRefresh: () async {
         await Future.delayed(const Duration(seconds: 1));
       },
-      color: AppColors.primary,
+      color: const Color(0xFFFF6B9D),
       child: ListView.builder(
         padding: const EdgeInsets.all(20),
         itemCount: orders.length,
@@ -198,10 +196,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Order #${order.id.substring(0, 8).toUpperCase()}', 
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)
-                      ),
+                      Text('Order #${order.id.substring(0, 8).toUpperCase()}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                       const SizedBox(height: 4),
                       Text(
                         '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year} ${order.createdAt.hour}:${order.createdAt.minute.toString().padLeft(2, '0')}',
@@ -264,7 +259,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Total:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                Text(formatRupiah(order.total.toInt()), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                Text(formatRupiah(order.total.toInt()), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFFF6B9D))),
               ],
             ),
           ],
@@ -289,7 +284,6 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: const BoxDecoration(
@@ -301,14 +295,14 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.receipt_long, color: AppColors.primary, size: 24),
+                    const Icon(Icons.receipt_long, color: Color(0xFFFF6B9D), size: 24),
                     const SizedBox(width: 12),
                     const Text(
                       'Detail Pesanan',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: Color(0xFF2D3142),
                       ),
                     ),
                     const Spacer(),
@@ -327,14 +321,12 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
                 ),
               ),
               
-              // Content
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Informasi Pembeli
                       FutureBuilder<DocumentSnapshot>(
                         future: FirebaseFirestore.instance.collection('users').doc(order.buyerId).get(),
                         builder: (context, userSnapshot) {
@@ -342,7 +334,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
                             return _buildDetailSection(
                               title: 'Informasi Pembeli',
                               children: [
-                                const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                                const Center(child: CircularProgressIndicator(color: Color(0xFFFF6B9D))),
                               ],
                             );
                           }
@@ -385,7 +377,6 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
                       
                       const SizedBox(height: 20),
                       
-                      // Informasi Pesanan
                       _buildDetailSection(
                         title: 'Informasi Pesanan',
                         children: [
@@ -398,7 +389,6 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
                       
                       const SizedBox(height: 20),
                       
-                      // Item Pesanan
                       _buildDetailSection(
                         title: 'Item Pesanan',
                         children: [
@@ -434,11 +424,10 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
                       
                       const SizedBox(height: 20),
                       
-                      // Total
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.lightPink,
+                          color: const Color(0xFFFFF0F5),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -449,7 +438,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                color: Color(0xFF2D3142),
                               ),
                             ),
                             Text(
@@ -457,7 +446,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                                color: Color(0xFFFF6B9D),
                               ),
                             ),
                           ],
@@ -470,7 +459,6 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
                 ),
               ),
               
-              // Footer dengan Tombol Ubah Status
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -495,9 +483,9 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          side: const BorderSide(color: AppColors.primary),
+                          side: const BorderSide(color: Color(0xFFFF6B9D)),
                         ),
-                        child: const Text('Tutup', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                        child: const Text('Tutup', style: TextStyle(color: Color(0xFFFF6B9D), fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -508,7 +496,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
                           _showChangeStatusDialog(order);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: const Color(0xFFFF6B9D),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -535,7 +523,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: Color(0xFF2D3142),
           ),
         ),
         const SizedBox(height: 12),
@@ -565,7 +553,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
           ),
           Text(
             value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2D3142)),
           ),
         ],
       ),
@@ -597,14 +585,14 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Status diubah menjadi ${getStatusLabel(status)}'),
-                              backgroundColor: AppColors.primary,
+                              backgroundColor: const Color(0xFFFF6B9D),
                             ),
                           );
                         },
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : getStatusColor(status),
+                      color: isSelected ? const Color(0xFFFF6B9D) : getStatusColor(status),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: getStatusTextColor(status), width: 1),
                     ),

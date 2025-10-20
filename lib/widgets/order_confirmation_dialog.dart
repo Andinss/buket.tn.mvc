@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../providers/auth_provider.dart';
 import '../models/cart_item.dart';
+import '../providers/auth_provider.dart';
 import '../services/firebase_service.dart';
 import '../utils/helpers.dart';
-import '../utils/constants.dart';
 
 class OrderConfirmationDialog extends StatefulWidget {
   final List<CartItem> items;
@@ -114,7 +113,6 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
@@ -126,21 +124,20 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.shopping_cart_checkout, color: AppColors.primary, size: 24),
+                  Icon(Icons.shopping_cart_checkout, color: Color(0xFFFF6B9D), size: 24),
                   SizedBox(width: 12),
                   Text(
                     'Checkout',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: Color(0xFF2D3142),
                     ),
                   ),
                 ],
               ),
             ),
             
-            // Content
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -149,11 +146,9 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                   children: [
                     const SizedBox(height: 16),
                     
-                    // Informasi Pengiriman Section
                     _buildSectionHeader('Informasi Pengiriman'),
                     const SizedBox(height: 16),
                     
-                    // Nama Penerima
                     _buildFormField(
                       label: 'Nama Penerima',
                       controller: _nameController,
@@ -162,7 +157,6 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                     ),
                     const SizedBox(height: 12),
                     
-                    // Nomor Telepon
                     _buildFormField(
                       label: 'Nomor Telepon',
                       controller: _phoneController,
@@ -172,7 +166,6 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                     ),
                     const SizedBox(height: 12),
                     
-                    // Alamat Lengkap
                     _buildFormField(
                       label: 'Alamat Lengkap',
                       controller: _addressController,
@@ -182,7 +175,6 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                     ),
                     const SizedBox(height: 12),
                     
-                    // Kota/Kabupaten
                     _buildFormField(
                       label: 'Kota/Kabupaten',
                       controller: _cityController,
@@ -191,7 +183,6 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                     ),
                     const SizedBox(height: 12),
                     
-                    // Kode Pos
                     _buildFormField(
                       label: 'Kode Pos',
                       controller: _postalCodeController,
@@ -201,7 +192,6 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                     ),
                     const SizedBox(height: 12),
                     
-                    // Catatan (Opsional)
                     _buildFormField(
                       label: 'Catatan (Opsional)',
                       controller: _notesController,
@@ -214,22 +204,18 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                     _buildDivider(),
                     const SizedBox(height: 20),
                     
-                    // Metode Pembayaran Section
                     _buildSectionHeader('Metode Pembayaran'),
                     const SizedBox(height: 16),
                     
-                    // Payment Methods
                     ..._buildPaymentMethods(),
                     
                     const SizedBox(height: 20),
                     _buildDivider(),
                     const SizedBox(height: 20),
                     
-                    // Ringkasan Pesanan Section
                     _buildSectionHeader('Ringkasan Pesanan'),
                     const SizedBox(height: 16),
                     
-                    // Order Items
                     _buildOrderSummary(),
                     
                     const SizedBox(height: 20),
@@ -238,7 +224,6 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
               ),
             ),
             
-            // Footer dengan Total dan Tombol
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -257,7 +242,6 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
               ),
               child: Column(
                 children: [
-                  // Total
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -266,7 +250,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: Color(0xFF2D3142),
                         ),
                       ),
                       Text(
@@ -274,14 +258,13 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                          color: Color(0xFFFF6B9D),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
                   
-                  // Tombol Bayar
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -299,7 +282,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                               );
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: const Color(0xFFFF6B9D),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
@@ -331,7 +314,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
       style: const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.bold,
-        color: AppColors.textPrimary,
+        color: Color(0xFF2D3142),
       ),
     );
   }
@@ -352,7 +335,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: Color(0xFF2D3142),
           ),
         ),
         const SizedBox(height: 8),
@@ -362,14 +345,14 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
           maxLines: maxLines,
           decoration: InputDecoration(
             hintText: hintText,
-            prefixIcon: Icon(icon, color: AppColors.primary),
+            prefixIcon: Icon(icon, color: const Color(0xFFFF6B9D)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade300),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+              borderSide: const BorderSide(color: Color(0xFFFF6B9D), width: 2),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
@@ -411,10 +394,10 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.lightPink : Colors.white,
+            color: isSelected ? const Color(0xFFFFF0F5) : Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? AppColors.primary : Colors.grey.shade300,
+              color: isSelected ? const Color(0xFFFF6B9D) : Colors.grey.shade300,
               width: isSelected ? 2 : 1,
             ),
           ),
@@ -425,9 +408,9 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                 height: 20,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isSelected ? AppColors.primary : Colors.transparent,
+                  color: isSelected ? const Color(0xFFFF6B9D) : Colors.transparent,
                   border: Border.all(
-                    color: isSelected ? AppColors.primary : Colors.grey.shade400,
+                    color: isSelected ? const Color(0xFFFF6B9D) : Colors.grey.shade400,
                     width: 2,
                   ),
                 ),
@@ -445,7 +428,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                        color: isSelected ? const Color(0xFFFF6B9D) : const Color(0xFF2D3142),
                       ),
                     ),
                     if (description.isNotEmpty) ...[
@@ -487,7 +470,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: Color(0xFF2D3142),
                   ),
                 ),
               ),
@@ -498,7 +481,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: Color(0xFF2D3142),
                   ),
                 ),
               ),
@@ -516,7 +499,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                     '${item.bouquet.name} × ${item.quantity}',
                     style: const TextStyle(
                       fontSize: 12,
-                      color: AppColors.textPrimary,
+                      color: Color(0xFF2D3142),
                     ),
                   ),
                 ),
@@ -527,7 +510,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: Color(0xFF2D3142),
                     ),
                   ),
                 ),
@@ -548,7 +531,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: Color(0xFF2D3142),
                   ),
                 ),
               ),
@@ -559,7 +542,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+                    color: Color(0xFFFF6B9D),
                   ),
                 ),
               ),

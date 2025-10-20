@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../../providers/auth_provider.dart';
-import '../../utils/constants.dart';
-import '../../utils/helpers.dart';
+import '../providers/auth_provider.dart';
+import 'main_navigation.dart';
 
-class ProfilePage extends StatefulWidget {
+class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
-  @override
-  State<ProfilePage> createState() => _ProfilePageState();
-}
+  void _navigateToPage(BuildContext context, int index) {
+    // Navigate to specific page using Navigator
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => MainNavigation(initialIndex: index)),
+      (route) => false,
+    );
+  }
 
-class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
@@ -24,7 +26,6 @@ class _ProfilePageState extends State<ProfilePage> {
       displayName = auth.user!.email!.split('@').first;
     }
 
-    // Format alamat lengkap
     String fullAddress = '';
     if (auth.address.isNotEmpty) {
       fullAddress = auth.address;
@@ -37,7 +38,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
     
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -52,7 +53,6 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Profile Header
             Stack(
               children: [
                 Container(
@@ -111,7 +111,6 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             const SizedBox(height: 32),
 
-            // Edit Profile Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -129,7 +128,6 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 20),
 
             if (isSeller) ...[
-              // SECTION: TOKO UNTUK SELLER
               _buildSectionHeader('Menu Toko'),
               const SizedBox(height: 12),
               Container(
@@ -144,14 +142,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       icon: Icons.store_rounded,
                       title: 'Kelola Produk',
                       subtitle: 'Tambah, edit, dan hapus produk',
-                      onTap: () {
-                        final mainNavState = context.findAncestorStateOfType<_MainNavigationState>();
-                        if (mainNavState != null) {
-                          mainNavState.setState(() {
-                            mainNavState._selectedIndex = 0; // Seller Products Page
-                          });
-                        }
-                      },
+                      onTap: () => _navigateToPage(context, 0),
                       color: const Color(0xFFFF6B9D),
                     ),
                     const Divider(height: 1),
@@ -159,14 +150,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       icon: Icons.receipt_long_rounded,
                       title: 'Pesanan Masuk',
                       subtitle: 'Lihat dan kelola pesanan',
-                      onTap: () {
-                        final mainNavState = context.findAncestorStateOfType<_MainNavigationState>();
-                        if (mainNavState != null) {
-                          mainNavState.setState(() {
-                            mainNavState._selectedIndex = 1; // Seller Orders Page
-                          });
-                        }
-                      },
+                      onTap: () => _navigateToPage(context, 1),
                       color: const Color(0xFFFF6B9D),
                     ),
                     const Divider(height: 1),
@@ -174,14 +158,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       icon: Icons.analytics_rounded,
                       title: 'Analytics & Laporan',
                       subtitle: 'Lihat statistik penjualan',
-                      onTap: () {
-                        final mainNavState = context.findAncestorStateOfType<_MainNavigationState>();
-                        if (mainNavState != null) {
-                          mainNavState.setState(() {
-                            mainNavState._selectedIndex = 2; // Seller Analytics Page
-                          });
-                        }
-                      },
+                      onTap: () => _navigateToPage(context, 2),
                       color: const Color(0xFFFF6B9D),
                     ),
                     const Divider(height: 1),
@@ -198,7 +175,7 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 20),
             ],
 
-            // SECTION: PENGATURAN AKUN (UNTUK SEMUA)
+            // ... (method lainnya tetap sama)
             _buildSectionHeader(isSeller ? 'Pengaturan Akun' : 'Pengaturan'),
             const SizedBox(height: 12),
             Container(
@@ -254,7 +231,6 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             const SizedBox(height: 20),
 
-            // SECTION: BANTUAN (UNTUK SEMUA)
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -283,7 +259,6 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             const SizedBox(height: 24),
 
-            // Logout Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -305,6 +280,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // ... (method _buildSectionHeader, _buildMenuTile, dan lainnya tetap sama)
   Widget _buildSectionHeader(String title) {
     return Align(
       alignment: Alignment.centerLeft,
@@ -428,7 +404,6 @@ class _ProfilePageState extends State<ProfilePage> {
           ElevatedButton(
             onPressed: () async {
               try {
-                // Simpan informasi toko
                 await auth.updateProfile(
                   storeNameController.text,
                   storePhoneController.text,
@@ -539,310 +514,50 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _showAddressDialog(BuildContext context, AuthProvider auth) {
-    final addressController = TextEditingController(text: auth.address);
-    final cityController = TextEditingController(text: auth.city);
-    final postalCodeController = TextEditingController(text: auth.postalCode);
-    final isSeller = auth.role == 'seller';
+    void _showAddressDialog(BuildContext context, AuthProvider auth) {
+      final addressController = TextEditingController(text: auth.address);
+      final cityController = TextEditingController(text: auth.city);
+      final postalCodeController = TextEditingController(text: auth.postalCode);
+      final isSeller = auth.role == 'seller';
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          isSeller ? 'Alamat Toko' : 'Alamat Pengiriman',
-          style: const TextStyle(color: Color(0xFFDB2777)),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: addressController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Alamat Lengkap',
-                  hintText: 'Masukkan alamat lengkap',
-                  prefixIcon: const Icon(Icons.location_on, color: Color(0xFFFF6B9D)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: cityController,
-                decoration: InputDecoration(
-                  labelText: 'Kota/Kabupaten',
-                  prefixIcon: const Icon(Icons.location_city, color: Color(0xFFFF6B9D)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: postalCodeController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Kode Pos',
-                  prefixIcon: const Icon(Icons.markunread_mailbox, color: Color(0xFFFF6B9D)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (addressController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Alamat tidak boleh kosong'), backgroundColor: Colors.red),
-                );
-                return;
-              }
-
-              try {
-                await auth.updateProfile(
-                  auth.user?.displayName ?? 'User',
-                  auth.phoneNumber,
-                  addressController.text,
-                  cityController.text,
-                  postalCodeController.text,
-                  auth.paymentMethod
-                );
-                
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(isSeller ? 'Alamat toko berhasil diperbarui!' : 'Alamat berhasil diperbarui!'),
-                    backgroundColor: const Color(0xFFFF6B9D),
-                  ),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF6B9D)
-            ),
-            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPaymentDialog(BuildContext context, AuthProvider auth) {
-    String selectedMethod = auth.paymentMethod.isNotEmpty ? 
-        (auth.paymentMethod == 'Credit Card' ? 'Transfer Bank' : auth.paymentMethod) 
-        : 'Transfer Bank';
-    final List<String> paymentMethods = [
-      'Transfer Bank',
-      'E-Wallet',
-      'Bayar di Tempat (COD)'
-    ];
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: const Text('Metode Pembayaran', style: TextStyle(color: Color(0xFFDB2777))),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ...paymentMethods.map((method) => RadioListTile<String>(
-                  title: Text(method),
-                  value: method,
-                  groupValue: selectedMethod,
-                  onChanged: (value) => setState(() => selectedMethod = value!),
-                  activeColor: const Color(0xFFFF6B9D),
-                )),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  try {
-                    await auth.updateProfile(
-                      auth.user?.displayName ?? 'User',
-                      auth.phoneNumber,
-                      auth.address,
-                      auth.city,
-                      auth.postalCode,
-                      selectedMethod
-                    );
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Metode pembayaran berhasil diperbarui!'), backgroundColor: Color(0xFFFF6B9D)),
-                    );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B9D)),
-                child: const Text('Simpan', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  void _showEditProfileDialog(BuildContext context, AuthProvider auth) {
-    final nameController = TextEditingController(text: auth.user?.displayName ?? '');
-    final isSeller = auth.role == 'seller';
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          isSeller ? 'Edit Profil Toko' : 'Edit Profile',
-          style: const TextStyle(color: Color(0xFFDB2777)),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: 'Nama',
-                  prefixIcon: const Icon(Icons.person, color: Color(0xFFFF6B9D)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                enabled: false,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: const Icon(Icons.email, color: Colors.grey),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                controller: TextEditingController(text: auth.user?.email ?? ''),
-              ),
-              if (isSeller) ...[
-                const SizedBox(height: 12),
-                const Text(
-                  'Untuk mengubah informasi toko lainnya, gunakan menu "Informasi Toko"',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Nama tidak boleh kosong'), backgroundColor: Colors.red),
-                );
-                return;
-              }
-
-              try {
-                await auth.updateProfile(
-                  nameController.text,
-                  auth.phoneNumber,
-                  auth.address,
-                  auth.city,
-                  auth.postalCode,
-                  auth.paymentMethod
-                );
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(isSeller ? 'Profil toko berhasil diperbarui!' : 'Profile berhasil diperbarui!'),
-                    backgroundColor: const Color(0xFFFF6B9D),
-                  ),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF6B9D)
-            ),
-            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSecurityDialog(BuildContext context) {
-    final passwordController = TextEditingController();
-    final newPasswordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
-    bool obscurePassword = true;
-    bool obscureNewPassword = true;
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Ubah Password'),
+          title: Text(
+            isSeller ? 'Alamat Toko' : 'Alamat Pengiriman',
+            style: const TextStyle(color: Color(0xFFDB2777)),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  controller: passwordController,
-                  obscureText: obscurePassword,
+                  controller: addressController,
+                  maxLines: 3,
                   decoration: InputDecoration(
-                    labelText: 'Password Saat Ini',
-                    prefixIcon: const Icon(Icons.lock, color: Color(0xFFDB2777)),
-                    suffixIcon: IconButton(
-                      icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => obscurePassword = !obscurePassword),
-                    ),
+                    labelText: 'Alamat Lengkap',
+                    hintText: 'Masukkan alamat lengkap',
+                    prefixIcon: const Icon(Icons.location_on, color: Color(0xFFFF6B9D)),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
-                  controller: newPasswordController,
-                  obscureText: obscureNewPassword,
+                  controller: cityController,
                   decoration: InputDecoration(
-                    labelText: 'Password Baru',
-                    prefixIcon: const Icon(Icons.lock, color: Color(0xFFDB2777)),
-                    suffixIcon: IconButton(
-                      icon: Icon(obscureNewPassword ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => obscureNewPassword = !obscureNewPassword),
-                    ),
+                    labelText: 'Kota/Kabupaten',
+                    prefixIcon: const Icon(Icons.location_city, color: Color(0xFFFF6B9D)),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
-                  controller: confirmPasswordController,
-                  obscureText: true,
+                  controller: postalCodeController,
+                  keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: 'Konfirmasi Password Baru',
-                    prefixIcon: const Icon(Icons.lock, color: Color(0xFFDB2777)),
+                    labelText: 'Kode Pos',
+                    prefixIcon: const Icon(Icons.markunread_mailbox, color: Color(0xFFFF6B9D)),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -852,74 +567,372 @@ class _ProfilePageState extends State<ProfilePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
-              onPressed: () {
-                if (passwordController.text.isEmpty || newPasswordController.text.isEmpty) {
+              onPressed: () async {
+                if (addressController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Semua field harus diisi'), backgroundColor: Colors.red),
+                    const SnackBar(content: Text('Alamat tidak boleh kosong'), backgroundColor: Colors.red),
                   );
                   return;
                 }
 
-                if (newPasswordController.text != confirmPasswordController.text) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Password baru tidak cocok'), backgroundColor: Colors.red),
+                try {
+                  await auth.updateProfile(
+                    auth.user?.displayName ?? 'User',
+                    auth.phoneNumber,
+                    addressController.text,
+                    cityController.text,
+                    postalCodeController.text,
+                    auth.paymentMethod
                   );
-                  return;
+                  
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(isSeller ? 'Alamat toko berhasil diperbarui!' : 'Alamat berhasil diperbarui!'),
+                      backgroundColor: const Color(0xFFFF6B9D),
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                  );
                 }
-
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Password berhasil diubah!'), backgroundColor: Color(0xFFDB2777)),
-                );
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDB2777)),
-              child: const Text('Ubah', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6B9D)
+              ),
+              child: const Text('Simpan', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  void _showNotificationSettings(BuildContext context) {
-    bool emailNotif = true;
-    bool smsNotif = true;
-    bool pushNotif = true;
+    void _showPaymentDialog(BuildContext context, AuthProvider auth) {
+      String selectedMethod = auth.paymentMethod.isNotEmpty ? 
+          (auth.paymentMethod == 'Credit Card' ? 'Transfer Bank' : auth.paymentMethod) 
+          : 'Transfer Bank';
+      final List<String> paymentMethods = [
+        'Transfer Bank',
+        'E-Wallet',
+        'Bayar di Tempat (COD)'
+      ];
 
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+      showDialog(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text('Metode Pembayaran', style: TextStyle(color: Color(0xFFDB2777))),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ...paymentMethods.map((method) => RadioListTile<String>(
+                    title: Text(method),
+                    value: method,
+                    groupValue: selectedMethod,
+                    onChanged: (value) => setState(() => selectedMethod = value!),
+                    activeColor: const Color(0xFFFF6B9D),
+                  )),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    try {
+                      await auth.updateProfile(
+                        auth.user?.displayName ?? 'User',
+                        auth.phoneNumber,
+                        auth.address,
+                        auth.city,
+                        auth.postalCode,
+                        selectedMethod
+                      );
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Metode pembayaran berhasil diperbarui!'), backgroundColor: Color(0xFFFF6B9D)),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B9D)),
+                  child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    }
+
+    void _showEditProfileDialog(BuildContext context, AuthProvider auth) {
+      final nameController = TextEditingController(text: auth.user?.displayName ?? '');
+      final isSeller = auth.role == 'seller';
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Pengaturan Notifikasi'),
+          title: Text(
+            isSeller ? 'Edit Profil Toko' : 'Edit Profile',
+            style: const TextStyle(color: Color(0xFFDB2777)),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SwitchListTile(
-                  title: const Text('Email Notification'),
-                  subtitle: const Text('Terima notifikasi via email'),
-                  value: emailNotif,
-                  onChanged: (value) => setState(() => emailNotif = value),
-                  activeColor: const Color(0xFFDB2777),
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nama',
+                    prefixIcon: const Icon(Icons.person, color: Color(0xFFFF6B9D)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                 ),
-                SwitchListTile(
-                  title: const Text('SMS Notification'),
-                  subtitle: const Text('Terima notifikasi via SMS'),
-                  value: smsNotif,
-                  onChanged: (value) => setState(() => smsNotif = value),
-                  activeColor: const Color(0xFFDB2777),
+                const SizedBox(height: 12),
+                TextField(
+                  enabled: false,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: const Icon(Icons.email, color: Colors.grey),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  controller: TextEditingController(text: auth.user?.email ?? ''),
                 ),
-                SwitchListTile(
-                  title: const Text('Push Notification'),
-                  subtitle: const Text('Terima notifikasi push app'),
-                  value: pushNotif,
-                  onChanged: (value) => setState(() => pushNotif = value),
-                  activeColor: const Color(0xFFDB2777),
-                ),
+                if (isSeller) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Untuk mengubah informasi toko lainnya, gunakan menu "Informasi Toko"',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Nama tidak boleh kosong'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+
+                try {
+                  await auth.updateProfile(
+                    nameController.text,
+                    auth.phoneNumber,
+                    auth.address,
+                    auth.city,
+                    auth.postalCode,
+                    auth.paymentMethod
+                  );
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(isSeller ? 'Profil toko berhasil diperbarui!' : 'Profile berhasil diperbarui!'),
+                      backgroundColor: const Color(0xFFFF6B9D),
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6B9D)
+              ),
+              child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    void _showSecurityDialog(BuildContext context) {
+      final passwordController = TextEditingController();
+      final newPasswordController = TextEditingController();
+      final confirmPasswordController = TextEditingController();
+      bool obscurePassword = true;
+      bool obscureNewPassword = true;
+
+      showDialog(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('Ubah Password'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: passwordController,
+                    obscureText: obscurePassword,
+                    decoration: InputDecoration(
+                      labelText: 'Password Saat Ini',
+                      prefixIcon: const Icon(Icons.lock, color: Color(0xFFDB2777)),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility),
+                        onPressed: () => setState(() => obscurePassword = !obscurePassword),
+                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: newPasswordController,
+                    obscureText: obscureNewPassword,
+                    decoration: InputDecoration(
+                      labelText: 'Password Baru',
+                      prefixIcon: const Icon(Icons.lock, color: Color(0xFFDB2777)),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureNewPassword ? Icons.visibility_off : Icons.visibility),
+                        onPressed: () => setState(() => obscureNewPassword = !obscureNewPassword),
+                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: confirmPasswordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'Konfirmasi Password Baru',
+                      prefixIcon: const Icon(Icons.lock, color: Color(0xFFDB2777)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Batal'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (passwordController.text.isEmpty || newPasswordController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Semua field harus diisi'), backgroundColor: Colors.red),
+                    );
+                    return;
+                  }
+
+                  if (newPasswordController.text != confirmPasswordController.text) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Password baru tidak cocok'), backgroundColor: Colors.red),
+                    );
+                    return;
+                  }
+
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Password berhasil diubah!'), backgroundColor: Color(0xFFDB2777)),
+                  );
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDB2777)),
+                child: const Text('Ubah', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    void _showNotificationSettings(BuildContext context) {
+      bool emailNotif = true;
+      bool smsNotif = true;
+      bool pushNotif = true;
+
+      showDialog(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('Pengaturan Notifikasi'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SwitchListTile(
+                    title: const Text('Email Notification'),
+                    subtitle: const Text('Terima notifikasi via email'),
+                    value: emailNotif,
+                    onChanged: (value) => setState(() => emailNotif = value),
+                    activeColor: const Color(0xFFDB2777),
+                  ),
+                  SwitchListTile(
+                    title: const Text('SMS Notification'),
+                    subtitle: const Text('Terima notifikasi via SMS'),
+                    value: smsNotif,
+                    onChanged: (value) => setState(() => smsNotif = value),
+                    activeColor: const Color(0xFFDB2777),
+                  ),
+                  SwitchListTile(
+                    title: const Text('Push Notification'),
+                    subtitle: const Text('Terima notifikasi push app'),
+                    value: pushNotif,
+                    onChanged: (value) => setState(() => pushNotif = value),
+                    activeColor: const Color(0xFFDB2777),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Tutup'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    void _showHelpDialog(BuildContext context) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Bantuan'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Hubungi Kami:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 8),
+                const Text('📧 Email: support@tokobunga.com', style: TextStyle(fontSize: 12)),
+                const SizedBox(height: 4),
+                const Text('📞 WhatsApp: +62 812-3456-7890', style: TextStyle(fontSize: 12)),
+                const SizedBox(height: 4),
+                const Text('⏰ Jam Operasional: 09:00 - 17:00 WIB', style: TextStyle(fontSize: 12)),
+                const SizedBox(height: 16),
+                const Text('FAQ Umum:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 8),
+                const Text('• Berapa lama pengiriman?\nPengiriman 1-3 hari kerja', style: TextStyle(fontSize: 12)),
+                const SizedBox(height: 8),
+                const Text('• Bagaimana jika barang rusak?\nHubungi CS kami untuk penggantian', style: TextStyle(fontSize: 12)),
               ],
             ),
           ),
@@ -930,109 +943,65 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ],
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  void _showHelpDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Bantuan'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Hubungi Kami:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              const SizedBox(height: 8),
-              const Text('📧 Email: support@tokobunga.com', style: TextStyle(fontSize: 12)),
-              const SizedBox(height: 4),
-              const Text('📞 WhatsApp: +62 812-3456-7890', style: TextStyle(fontSize: 12)),
-              const SizedBox(height: 4),
-              const Text('⏰ Jam Operasional: 09:00 - 17:00 WIB', style: TextStyle(fontSize: 12)),
-              const SizedBox(height: 16),
-              const Text('FAQ Umum:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              const SizedBox(height: 8),
-              const Text('• Berapa lama pengiriman?\nPengiriman 1-3 hari kerja', style: TextStyle(fontSize: 12)),
-              const SizedBox(height: 8),
-              const Text('• Bagaimana jika barang rusak?\nHubungi CS kami untuk penggantian', style: TextStyle(fontSize: 12)),
-            ],
+    void _showAboutDialog(BuildContext context) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Tentang Kami'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Toko Bunga Cantik', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFDB2777))),
+                const SizedBox(height: 8),
+                const Text('Versi: 1.0.0', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 16),
+                const Text('Kami adalah aplikasi toko bunga online yang menyediakan rangkaian bunga segar berkualitas tinggi untuk berbagai acara spesial Anda.', style: TextStyle(fontSize: 13, height: 1.6)),
+                const SizedBox(height: 16),
+                const Text('Fitur:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text('✓ Bunga segar pilihan\n✓ Pengiriman cepat\n✓ Cicilan 0%\n✓ Garansi kepuasan', style: TextStyle(fontSize: 12, height: 1.8)),
+                const SizedBox(height: 16),
+                const Text('© 2025 Toko Bunga Cantik. All rights reserved.', style: TextStyle(fontSize: 11, color: Colors.grey, fontStyle: FontStyle.italic)),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tutup'),
-          ),
-        ],
-      ),
-    );
-  }
+      );
+    }
 
-  void _showAboutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Tentang Kami'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Toko Bunga Cantik', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFDB2777))),
-              const SizedBox(height: 8),
-              const Text('Versi: 1.0.0', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(height: 16),
-              const Text('Kami adalah aplikasi toko bunga online yang menyediakan rangkaian bunga segar berkualitas tinggi untuk berbagai acara spesial Anda.', style: TextStyle(fontSize: 13, height: 1.6)),
-              const SizedBox(height: 16),
-              const Text('Fitur:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text('✓ Bunga segar pilihan\n✓ Pengiriman cepat\n✓ Cicilan 0%\n✓ Garansi kepuasan', style: TextStyle(fontSize: 12, height: 1.8)),
-              const SizedBox(height: 16),
-              const Text('© 2025 Toko Bunga Cantik. All rights reserved.', style: TextStyle(fontSize: 11, color: Colors.grey, fontStyle: FontStyle.italic)),
-            ],
-          ),
+    void _showLogoutDialog(BuildContext context, AuthProvider auth) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Keluar?'),
+          content: const Text('Apakah Anda yakin ingin keluar dari akun ini?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () {
+                auth.signOut();
+                Navigator.pop(context);
+              },
+              child: const Text('Keluar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tutup'),
-          ),
-        ],
-      ),
-    );
+      );
+    }
   }
-
-  void _showLogoutDialog(BuildContext context, AuthProvider auth) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Keluar?'),
-        content: const Text('Apakah Anda yakin ingin keluar dari akun ini?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () {
-              auth.signOut();
-              Navigator.pop(context);
-            },
-            child: const Text('Keluar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Tambahkan ini untuk mengatasi error di main_navigation
-class _MainNavigationState {
-  int _selectedIndex = 0;
-  void setState(VoidCallback callback) {}
-}

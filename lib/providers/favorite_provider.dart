@@ -28,6 +28,4 @@ class FavoriteProvider with ChangeNotifier {
     if (currentUid == null) return;
     await service.toggleFavorite(currentUid!, bouquetId);
   }
-
-  int get favoriteCount => favoriteIds.length;
 }

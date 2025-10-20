@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 
 class Order {
   final String id;
@@ -22,7 +21,6 @@ class Order {
     try {
       final d = doc.data() as Map<String, dynamic>? ?? {};
       
-      // Handle items parsing safely
       List<Map<String, dynamic>> itemsList = [];
       try {
         final itemsData = d['items'];
@@ -38,11 +36,9 @@ class Order {
           }).toList();
         }
       } catch (e) {
-        debugPrint('Error parsing items: $e');
         itemsList = [];
       }
 
-      // Handle total parsing
       double totalValue = 0;
       try {
         final totalData = d['total'];
@@ -54,11 +50,9 @@ class Order {
           totalValue = double.tryParse(totalData) ?? 0;
         }
       } catch (e) {
-        debugPrint('Error parsing total: $e');
         totalValue = 0;
       }
 
-      // Handle createdAt parsing
       DateTime createdAtValue = DateTime.now();
       try {
         final createdAtData = d['createdAt'];
@@ -68,7 +62,6 @@ class Order {
           createdAtValue = DateTime.tryParse(createdAtData) ?? DateTime.now();
         }
       } catch (e) {
-        debugPrint('Error parsing createdAt: $e');
         createdAtValue = DateTime.now();
       }
 
@@ -81,7 +74,6 @@ class Order {
         createdAt: createdAtValue,
       );
     } catch (e) {
-      debugPrint('Error creating Order from document: $e');
       return Order(
         id: doc.id,
         buyerId: 'Unknown',

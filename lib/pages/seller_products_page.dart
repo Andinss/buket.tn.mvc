@@ -1,16 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'dart:convert';
 
-import '../../providers/auth_provider.dart';
-import '../../providers/bouquet_provider.dart';
-import '../../services/firebase_service.dart';
-import '../../models/bouquet.dart';
-import '../../widgets/build_product_image.dart';
-import '../../utils/helpers.dart';
-import '../../utils/constants.dart';
+import '../providers/auth_provider.dart';
+import '../providers/bouquet_provider.dart';
+import '../services/firebase_service.dart';
+import '../models/bouquet.dart';
+import '../utils/helpers.dart';
 
 class SellerProductsPage extends StatefulWidget {
   const SellerProductsPage({super.key});
@@ -25,132 +24,123 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
     final auth = Provider.of<AuthProvider>(context);
     final bouquets = Provider.of<BouquetProvider>(context).bouquets;
     
-    // Tampilkan produk seller + produk admin (hardcode)
     final sellerProducts = bouquets.where((b) => 
       b.sellerId == auth.user?.uid || b.sellerId == 'admin'
     ).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Produk Saya', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 20)),
+        title: const Text('Produk Saya', style: TextStyle(color: Color(0xFF2D3142), fontWeight: FontWeight.bold, fontSize: 20)),
         centerTitle: true,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddProductDialog(context, auth.user!.uid),
-        backgroundColor: AppColors.primary,
+        backgroundColor: const Color(0xFFFF6B9D),
         child: const Icon(Icons.add),
       ),
       body: sellerProducts.isEmpty
-          ? _buildEmptyProducts()
-          : _buildProductsList(sellerProducts),
-    );
-  }
-
-  Widget _buildEmptyProducts() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(40),
-            decoration: const BoxDecoration(color: AppColors.accentPink, shape: BoxShape.circle),
-            child: const Icon(Icons.store_rounded, size: 80, color: AppColors.primary),
-          ),
-          const SizedBox(height: 30),
-          const Text('Belum Ada Produk', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-          const SizedBox(height: 12),
-          Text('Mulai tambah produk bunga Anda', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProductsList(List<Bouquet> products) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: products.length,
-      itemBuilder: (context, index) {
-        final product = products[index];
-        final isAdminProduct = product.sellerId == 'admin';
-        
-        return Container(
-          margin: const EdgeInsets.only(bottom: 15),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
-            border: isAdminProduct ? Border.all(color: Colors.orange, width: 1) : null,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: AppColors.accentPink,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: product.images.isNotEmpty 
-                      ? buildProductImage(product.images[0])
-                      : const Icon(Icons.image, color: AppColors.primary),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(product.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ),
-                        if (isAdminProduct)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(color: Colors.orange.shade100, borderRadius: BorderRadius.circular(8)),
-                            child: const Text('Sample', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange)),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(formatRupiah(product.price), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                    const SizedBox(height: 4),
-                    Text(product.category, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                  ],
-                ),
-              ),
-              Column(
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  GestureDetector(
-                    onTap: () => _showEditProductDialog(context, product),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: AppColors.accentPink, borderRadius: BorderRadius.circular(8)),
-                      child: const Icon(Icons.edit, size: 18, color: AppColors.primary),
-                    ),
+                  Container(
+                    padding: const EdgeInsets.all(40),
+                    decoration: const BoxDecoration(color: Color(0xFFFFE8F0), shape: BoxShape.circle),
+                    child: const Icon(Icons.store_rounded, size: 80, color: Color(0xFFFF6B9D)),
                   ),
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () => _showDeleteProductDialog(context, product.id),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(8)),
-                      child: Icon(Icons.delete, size: 18, color: Colors.red.shade600),
-                    ),
-                  ),
+                  const SizedBox(height: 30),
+                  const Text('Belum Ada Produk', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
+                  const SizedBox(height: 12),
+                  Text('Mulai tambah produk bunga Anda', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
                 ],
               ),
-            ],
-          ),
-        );
-      },
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(20),
+              itemCount: sellerProducts.length,
+              itemBuilder: (context, index) {
+                final product = sellerProducts[index];
+                final isAdminProduct = product.sellerId == 'admin';
+                
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 15),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
+                    border: isAdminProduct ? Border.all(color: Colors.orange, width: 1) : null,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: const Color(0xFFFFE8F0),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: product.images.isNotEmpty 
+                              ? buildProductImage(product.images[0])
+                              : const Icon(Icons.image, color: Color(0xFFFF6B9D)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(product.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                ),
+                                if (isAdminProduct)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(color: Colors.orange.shade100, borderRadius: BorderRadius.circular(8)),
+                                    child: const Text('Sample', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange)),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(formatRupiah(product.price), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFFF6B9D))),
+                            const SizedBox(height: 4),
+                            Text(product.category, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        children: [
+                          GestureDetector(
+                            onTap: () => _showEditProductDialog(context, product),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(color: const Color(0xFFFFE8F0), borderRadius: BorderRadius.circular(8)),
+                              child: const Icon(Icons.edit, size: 18, color: Color(0xFFFF6B9D)),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: () => _showDeleteProductDialog(context, product.id),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(8)),
+                              child: Icon(Icons.delete, size: 18, color: Colors.red.shade600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
     );
   }
 
@@ -182,17 +172,17 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      color: AppColors.accentPink,
+                      color: const Color(0xFFFFE8F0),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.primary, width: 2, style: BorderStyle.solid),
+                      border: Border.all(color: const Color(0xFFFF6B9D), width: 2, style: BorderStyle.solid),
                     ),
                     child: selectedImage == null
                         ? Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: const [
-                              Icon(Icons.add_photo_alternate, size: 40, color: AppColors.primary),
+                              Icon(Icons.add_photo_alternate, size: 40, color: Color(0xFFFF6B9D)),
                               SizedBox(height: 8),
-                              Text('Pilih Gambar', style: TextStyle(fontSize: 12, color: AppColors.primary)),
+                              Text('Pilih Gambar', style: TextStyle(fontSize: 12, color: Color(0xFFFF6B9D))),
                             ],
                           )
                         : ClipRRect(
@@ -206,7 +196,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                   controller: nameController,
                   decoration: InputDecoration(
                     labelText: 'Nama Produk',
-                    prefixIcon: const Icon(Icons.local_florist, color: AppColors.primary),
+                    prefixIcon: const Icon(Icons.local_florist, color: Color(0xFFFF6B9D)),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -216,7 +206,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                   maxLines: 2,
                   decoration: InputDecoration(
                     labelText: 'Deskripsi Singkat',
-                    prefixIcon: const Icon(Icons.description, color: AppColors.primary),
+                    prefixIcon: const Icon(Icons.description, color: Color(0xFFFF6B9D)),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -226,7 +216,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: 'Harga (Rp)',
-                    prefixIcon: const Icon(Icons.money, color: AppColors.primary),
+                    prefixIcon: const Icon(Icons.money, color: Color(0xFFFF6B9D)),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -235,7 +225,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                   controller: categoryController,
                   decoration: InputDecoration(
                     labelText: 'Kategori',
-                    prefixIcon: const Icon(Icons.category, color: AppColors.primary),
+                    prefixIcon: const Icon(Icons.category, color: Color(0xFFFF6B9D)),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -245,7 +235,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                   maxLines: 3,
                   decoration: InputDecoration(
                     labelText: 'Detail Produk',
-                    prefixIcon: const Icon(Icons.note, color: AppColors.primary),
+                    prefixIcon: const Icon(Icons.note, color: Color(0xFFFF6B9D)),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -293,7 +283,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
 
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Produk berhasil ditambahkan!'), backgroundColor: AppColors.primary),
+                    const SnackBar(content: Text('Produk berhasil ditambahkan!'), backgroundColor: Color(0xFFFF6B9D)),
                   );
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -301,7 +291,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                   );
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B9D)),
               child: const Text('Tambahkan', style: TextStyle(color: Colors.white)),
             ),
           ],
@@ -338,9 +328,9 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      color: AppColors.accentPink,
+                      color: const Color(0xFFFFE8F0),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.primary, width: 2),
+                      border: Border.all(color: const Color(0xFFFF6B9D), width: 2),
                     ),
                     child: selectedImage == null
                         ? product.images.isNotEmpty
@@ -351,9 +341,9 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                             : Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: const [
-                                  Icon(Icons.add_photo_alternate, size: 40, color: AppColors.primary),
+                                  Icon(Icons.add_photo_alternate, size: 40, color: Color(0xFFFF6B9D)),
                                   SizedBox(height: 8),
-                                  Text('Ubah Gambar', style: TextStyle(fontSize: 12, color: AppColors.primary)),
+                                  Text('Ubah Gambar', style: TextStyle(fontSize: 12, color: Color(0xFFFF6B9D))),
                                 ],
                               )
                         : ClipRRect(
@@ -367,7 +357,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                   controller: nameController,
                   decoration: InputDecoration(
                     labelText: 'Nama Produk',
-                    prefixIcon: const Icon(Icons.local_florist, color: AppColors.primary),
+                    prefixIcon: const Icon(Icons.local_florist, color: Color(0xFFFF6B9D)),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -377,7 +367,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                   maxLines: 2,
                   decoration: InputDecoration(
                     labelText: 'Deskripsi Singkat',
-                    prefixIcon: const Icon(Icons.description, color: AppColors.primary),
+                    prefixIcon: const Icon(Icons.description, color: Color(0xFFFF6B9D)),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -387,7 +377,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: 'Harga (Rp)',
-                    prefixIcon: const Icon(Icons.money, color: AppColors.primary),
+                    prefixIcon: const Icon(Icons.money, color: Color(0xFFFF6B9D)),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -396,7 +386,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                   controller: categoryController,
                   decoration: InputDecoration(
                     labelText: 'Kategori',
-                    prefixIcon: const Icon(Icons.category, color: AppColors.primary),
+                    prefixIcon: const Icon(Icons.category, color: Color(0xFFFF6B9D)),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -406,7 +396,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                   maxLines: 3,
                   decoration: InputDecoration(
                     labelText: 'Detail Produk',
-                    prefixIcon: const Icon(Icons.note, color: AppColors.primary),
+                    prefixIcon: const Icon(Icons.note, color: Color(0xFFFF6B9D)),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -452,7 +442,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
 
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Produk berhasil diperbarui!'), backgroundColor: AppColors.primary),
+                    const SnackBar(content: Text('Produk berhasil diperbarui!'), backgroundColor: Color(0xFFFF6B9D)),
                   );
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -460,7 +450,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
                   );
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B9D)),
               child: const Text('Perbarui', style: TextStyle(color: Colors.white)),
             ),
           ],
@@ -489,7 +479,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
 
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Produk berhasil dihapus!'), backgroundColor: AppColors.primary),
+                  const SnackBar(content: Text('Produk berhasil dihapus!'), backgroundColor: Color(0xFFFF6B9D)),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(

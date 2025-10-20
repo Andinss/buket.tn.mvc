@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../providers/auth_provider.dart';
-import '../../services/firebase_service.dart';
-import '../../models/order.dart';
-import '../../utils/helpers.dart';
-import '../../utils/constants.dart';
+import '../providers/auth_provider.dart';
+import '../services/firebase_service.dart';
+import '../models/order.dart';
+import '../utils/helpers.dart';
+import 'main_navigation.dart';
 
 class ActivityPage extends StatefulWidget {
   const ActivityPage({super.key});
@@ -29,20 +29,26 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
     super.dispose();
   }
 
+  void _navigateToHome() {
+    // Navigate to home page using Navigator
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const MainNavigation()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
     final service = FirebaseService();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          'Aktivitas Pesanan', 
-          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 20)
-        ),
+        title: const Text('Aktivitas Pesanan', style: TextStyle(color: Color(0xFF2D3142), fontWeight: FontWeight.bold, fontSize: 20)),
         centerTitle: true,
         bottom: auth.user == null
             ? null
@@ -51,8 +57,8 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                 child: TabBar(
                   controller: _tabController,
                   isScrollable: true,
-                  indicatorColor: AppColors.primary,
-                  labelColor: AppColors.primary,
+                  indicatorColor: const Color(0xFFFF6B9D),
+                  labelColor: const Color(0xFFFF6B9D),
                   unselectedLabelColor: Colors.grey,
                   tabAlignment: TabAlignment.start,
                   labelPadding: const EdgeInsets.symmetric(horizontal: 8),
@@ -81,7 +87,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CircularProgressIndicator(color: AppColors.primary),
+                        CircularProgressIndicator(color: Color(0xFFFF6B9D)),
                         SizedBox(height: 16),
                         Text('Memuat pesanan...'),
                       ],
@@ -94,7 +100,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 80, color: AppColors.primary),
+                        const Icon(Icons.error_outline, size: 80, color: Color(0xFFFF6B9D)),
                         const SizedBox(height: 16),
                         const Text('Terjadi kesalahan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
@@ -110,7 +116,6 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                   return _buildEmptyOrders();
                 }
 
-                // Kategorikan pesanan berdasarkan status
                 final placedOrders = allOrders.where((o) => o.status == 'placed').toList();
                 final processingOrders = allOrders.where((o) => o.status == 'processing').toList();
                 final shippedOrders = allOrders.where((o) => o.status == 'shipped').toList();
@@ -138,25 +143,18 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
         children: [
           Container(
             padding: const EdgeInsets.all(40),
-            decoration: const BoxDecoration(color: AppColors.accentPink, shape: BoxShape.circle),
-            child: const Icon(Icons.receipt_long_outlined, size: 80, color: AppColors.primary),
+            decoration: const BoxDecoration(color: Color(0xFFFFE8F0), shape: BoxShape.circle),
+            child: const Icon(Icons.receipt_long_outlined, size: 80, color: Color(0xFFFF6B9D)),
           ),
           const SizedBox(height: 30),
-          const Text('Belum Ada Pesanan', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+          const Text('Belum Ada Pesanan', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
           const SizedBox(height: 12),
           Text('Belum ada riwayat pesanan', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
           const SizedBox(height: 30),
           ElevatedButton(
-            onPressed: () {
-              final mainNavState = context.findAncestorStateOfType<_MainNavigationState>();
-              if (mainNavState != null) {
-                mainNavState.setState(() {
-                  mainNavState._selectedIndex = 0;
-                });
-              }
-            },
+            onPressed: _navigateToHome,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
+              backgroundColor: const Color(0xFFFF6B9D),
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               elevation: 0,
@@ -168,6 +166,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
     );
   }
 
+  // ... (method lainnya tetap sama)
   Widget _buildOrdersList(List<Order> orders, String emptyMessage) {
     if (orders.isEmpty) {
       return Center(
@@ -176,11 +175,11 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
           children: [
             Container(
               padding: const EdgeInsets.all(40),
-              decoration: const BoxDecoration(color: AppColors.accentPink, shape: BoxShape.circle),
-              child: const Icon(Icons.receipt_long_outlined, size: 80, color: AppColors.primary),
+              decoration: const BoxDecoration(color: Color(0xFFFFE8F0), shape: BoxShape.circle),
+              child: const Icon(Icons.receipt_long_outlined, size: 80, color: Color(0xFFFF6B9D)),
             ),
             const SizedBox(height: 30),
-            Text(emptyMessage, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+            Text(emptyMessage, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
             const SizedBox(height: 12),
             Text('Belum ada pesanan dengan status ini', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
           ],
@@ -192,7 +191,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
       onRefresh: () async {
         await Future.delayed(const Duration(seconds: 1));
       },
-      color: AppColors.primary,
+      color: const Color(0xFFFF6B9D),
       child: ListView.builder(
         padding: const EdgeInsets.all(20),
         itemCount: orders.length,
@@ -229,10 +228,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Order #${order.id.substring(0, 8).toUpperCase()}', 
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)
-                      ),
+                      Text('Order #${order.id.substring(0, 8).toUpperCase()}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                       const SizedBox(height: 4),
                       Text(
                         '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year} ${order.createdAt.hour}:${order.createdAt.minute.toString().padLeft(2, '0')}',
@@ -261,7 +257,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Item Pesanan:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  const Text('Item Pesanan:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                   const SizedBox(height: 8),
                   ...order.items.map((item) => Padding(
                         padding: const EdgeInsets.only(bottom: 8),
@@ -279,7 +275,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                             const SizedBox(width: 8),
                             Text(
                               formatRupiah(item['price'] * item['qty']),
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF2D3142)),
                             ),
                           ],
                         ),
@@ -291,10 +287,10 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Total:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                const Text('Total:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                 Text(
                   formatRupiah(order.total.toInt()),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFFF6B9D)),
                 ),
               ],
             ),
@@ -320,7 +316,6 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: const BoxDecoration(
@@ -332,14 +327,14 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.receipt_long, color: AppColors.primary, size: 24),
+                    const Icon(Icons.receipt_long, color: Color(0xFFFF6B9D), size: 24),
                     const SizedBox(width: 12),
                     const Text(
                       'Detail Pesanan',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: Color(0xFF2D3142),
                       ),
                     ),
                     const Spacer(),
@@ -358,14 +353,12 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                 ),
               ),
               
-              // Content
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Informasi Pesanan
                       _buildDetailSection(
                         title: 'Informasi Pesanan',
                         children: [
@@ -378,7 +371,6 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                       
                       const SizedBox(height: 20),
                       
-                      // Item Pesanan
                       _buildDetailSection(
                         title: 'Item Pesanan',
                         children: [
@@ -414,11 +406,10 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                       
                       const SizedBox(height: 20),
                       
-                      // Total
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.lightPink,
+                          color: const Color(0xFFFFF0F5),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -429,7 +420,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                color: Color(0xFF2D3142),
                               ),
                             ),
                             Text(
@@ -437,7 +428,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                                color: Color(0xFFFF6B9D),
                               ),
                             ),
                           ],
@@ -450,7 +441,6 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                 ),
               ),
               
-              // Footer
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -472,7 +462,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
+                      backgroundColor: const Color(0xFFFF6B9D),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -497,7 +487,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: Color(0xFF2D3142),
           ),
         ),
         const SizedBox(height: 12),
@@ -527,7 +517,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
           ),
           Text(
             value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2D3142)),
           ),
         ],
       ),

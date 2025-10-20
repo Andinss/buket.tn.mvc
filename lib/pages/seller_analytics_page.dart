@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 
-import '../../providers/auth_provider.dart';
-import '../../providers/bouquet_provider.dart';
-import '../../services/firebase_service.dart';
-import '../../models/order.dart';
-import '../../utils/helpers.dart';
-import '../../utils/constants.dart';
+import '../providers/auth_provider.dart';
+import '../providers/bouquet_provider.dart';
+import '../services/firebase_service.dart';
+import '../models/order.dart';
+import '../utils/helpers.dart';
 
 class SellerAnalyticsPage extends StatelessWidget {
   const SellerAnalyticsPage({super.key});
@@ -19,11 +18,11 @@ class SellerAnalyticsPage extends StatelessWidget {
     final service = FirebaseService();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Analytics', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 20)),
+        title: const Text('Analytics', style: TextStyle(color: Color(0xFF2D3142), fontWeight: FontWeight.bold, fontSize: 20)),
         centerTitle: true,
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -31,7 +30,7 @@ class SellerAnalyticsPage extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
+              child: CircularProgressIndicator(color: Color(0xFFFF6B9D)),
             );
           }
 
@@ -40,7 +39,7 @@ class SellerAnalyticsPage extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, size: 80, color: AppColors.primary),
+                  const Icon(Icons.error_outline, size: 80, color: Color(0xFFFF6B9D)),
                   const SizedBox(height: 16),
                   const Text('Error loading analytics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
@@ -52,7 +51,6 @@ class SellerAnalyticsPage extends StatelessWidget {
 
           final allOrders = snapshot.data?.docs.map((doc) => Order.fromDoc(doc)).toList() ?? [];
 
-          // Calculate analytics
           int totalRevenue = 0;
           int placedCount = 0;
           int processingCount = 0;
@@ -85,7 +83,6 @@ class SellerAnalyticsPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // KPI Cards
                 Row(
                   children: [
                     Expanded(
@@ -93,7 +90,7 @@ class SellerAnalyticsPage extends StatelessWidget {
                         title: 'Total Revenue',
                         value: formatRupiah(totalRevenue),
                         icon: Icons.trending_up,
-                        color: AppColors.primary,
+                        color: const Color(0xFFFF6B9D),
                       ),
                     ),
                     const SizedBox(width: 15),
@@ -131,8 +128,7 @@ class SellerAnalyticsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 30),
 
-                // Order Status Breakdown
-                const Text('Order Status Breakdown', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                const Text('Order Status Breakdown', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                 const SizedBox(height: 15),
                 Container(
                   padding: const EdgeInsets.all(20),
@@ -155,8 +151,7 @@ class SellerAnalyticsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 30),
 
-                // Recent Orders
-                const Text('Recent Orders', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                const Text('Recent Orders', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                 const SizedBox(height: 15),
                 if (allOrders.isEmpty)
                   Container(
@@ -206,7 +201,7 @@ class SellerAnalyticsPage extends StatelessWidget {
                                 child: Text(statusLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusTextColor)),
                               ),
                               const SizedBox(height: 6),
-                              Text(formatRupiah(order.total.toInt()), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                              Text(formatRupiah(order.total.toInt()), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFFF6B9D))),
                             ],
                           ),
                         ],
@@ -249,7 +244,7 @@ class SellerAnalyticsPage extends StatelessWidget {
           const SizedBox(height: 12),
           Text(title, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
           const SizedBox(height: 6),
-          Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+          Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
         ],
       ),
     );
@@ -259,7 +254,7 @@ class SellerAnalyticsPage extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF2D3142))),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(20)),

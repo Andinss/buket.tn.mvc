@@ -1,17 +1,15 @@
+import 'package:buket_tn/models/cart_item.dart';
+import 'package:buket_tn/pages/favorite_page.dart';
+import 'package:buket_tn/services/firebase_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../providers/auth_provider.dart';
-import '../../providers/cart_provider.dart';
-import '../../providers/favorite_provider.dart';
-import '../../models/bouquet.dart';
-import '../../models/cart_item.dart';
-import '../../services/firebase_service.dart';
-import '../../widgets/build_product_image.dart';
-import '../../widgets/order_confirmation_dialog.dart';
-import '../../utils/helpers.dart';
-import '../../utils/constants.dart';
-import 'favorite_page.dart';
+import '../models/bouquet.dart';
+import '../providers/auth_provider.dart';
+import '../providers/cart_provider.dart';
+import '../providers/favorite_provider.dart';
+import '../utils/helpers.dart';
+import '../widgets/order_confirmation_dialog.dart';
 
 class DetailPage extends StatefulWidget {
   final Bouquet bouquet;
@@ -39,6 +37,7 @@ class _DetailPageState extends State<DetailPage> {
   }
 
   void _buyNow() {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
     final cart = Provider.of<CartProvider>(context, listen: false);
     final total = widget.bouquet.price * quantity;
     
@@ -74,18 +73,16 @@ class _DetailPageState extends State<DetailPage> {
               cart.removeItem(item.bouquet.id);
             }
             
-            if (!mounted) return;
             Navigator.popUntil(context, (route) => route.isFirst);
             
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Pesanan berhasil dibuat!'),
-                backgroundColor: AppColors.primary,
+              SnackBar(
+                content: const Text('Pesanan berhasil dibuat!'),
+                backgroundColor: const Color(0xFFFF6B9D),
                 behavior: SnackBarBehavior.floating,
               ),
             );
           } catch (e) {
-            if (!mounted) return;
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -123,15 +120,15 @@ class _DetailPageState extends State<DetailPage> {
                       child: const Icon(Icons.arrow_back_ios_new, size: 20),
                     ),
                   ),
-                  const Text('Detail Produk', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  const Text('Detail Product', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                   GestureDetector(
                     onTap: () async {
                       await favoriteProvider.toggleFavorite(widget.bouquet.id);
-                      if (!isFavorite && mounted) {
+                      if (!isFavorite) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: const Text('Ditambahkan ke favorit!'),
-                            backgroundColor: AppColors.primary,
+                            backgroundColor: const Color(0xFFFF6B9D),
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             action: SnackBarAction(
@@ -146,7 +143,7 @@ class _DetailPageState extends State<DetailPage> {
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(12)),
-                      child: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: AppColors.primary, size: 20),
+                      child: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: const Color(0xFFFF6B9D), size: 20),
                     ),
                   ),
                 ],
@@ -162,7 +159,7 @@ class _DetailPageState extends State<DetailPage> {
                         Container(
                           margin: const EdgeInsets.symmetric(horizontal: 20),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(colors: [AppColors.accentPink, AppColors.lightPink], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                            gradient: const LinearGradient(colors: [Color(0xFFFFE8F0), Color(0xFFFFF0F5)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                             borderRadius: BorderRadius.circular(30),
                           ),
                           height: 400,
@@ -190,7 +187,7 @@ class _DetailPageState extends State<DetailPage> {
                                 margin: const EdgeInsets.symmetric(horizontal: 4),
                                 width: currentImageIndex == index ? 24 : 8,
                                 height: 8,
-                                decoration: BoxDecoration(color: currentImageIndex == index ? AppColors.primary : Colors.white, borderRadius: BorderRadius.circular(4)),
+                                decoration: BoxDecoration(color: currentImageIndex == index ? const Color(0xFFFF6B9D) : Colors.white, borderRadius: BorderRadius.circular(4)),
                               ),
                             ),
                           ),
@@ -211,13 +208,13 @@ class _DetailPageState extends State<DetailPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(widget.bouquet.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                                    Text(widget.bouquet.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                                     const SizedBox(height: 4),
                                     Text(widget.bouquet.category, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
                                   ],
                                 ),
                               ),
-                              Text(formatRupiah(widget.bouquet.price), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                              Text(formatRupiah(widget.bouquet.price), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFFFF6B9D))),
                             ],
                           ),
                           const SizedBox(height: 20),
@@ -226,15 +223,15 @@ class _DetailPageState extends State<DetailPage> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Jumlah:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                              const Text('Quantity:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 4),
                                 decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(12)),
                                 child: Row(
                                   children: [
-                                    IconButton(onPressed: () { if (quantity > 1) setState(() => quantity--); }, icon: const Icon(Icons.remove), color: AppColors.primary),
+                                    IconButton(onPressed: () { if (quantity > 1) setState(() => quantity--); }, icon: const Icon(Icons.remove), color: const Color(0xFFFF6B9D)),
                                     Container(width: 40, alignment: Alignment.center, child: Text('$quantity', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
-                                    IconButton(onPressed: () => setState(() => quantity++), icon: const Icon(Icons.add), color: AppColors.primary),
+                                    IconButton(onPressed: () => setState(() => quantity++), icon: const Icon(Icons.add), color: const Color(0xFFFF6B9D)),
                                   ],
                                 ),
                               ),
@@ -249,8 +246,8 @@ class _DetailPageState extends State<DetailPage> {
                                     cart.addItem(widget.bouquet, quantity);
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: const Text('Ditambahkan ke keranjang!'), 
-                                        backgroundColor: AppColors.primary, 
+                                        content: const Text('Added to cart!'), 
+                                        backgroundColor: const Color(0xFFFF6B9D), 
                                         behavior: SnackBarBehavior.floating, 
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
                                       ),
@@ -258,11 +255,11 @@ class _DetailPageState extends State<DetailPage> {
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.white,
-                                    foregroundColor: AppColors.primary,
+                                    foregroundColor: const Color(0xFFFF6B9D),
                                     padding: const EdgeInsets.symmetric(vertical: 18),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
-                                      side: const BorderSide(color: AppColors.primary, width: 2),
+                                      side: const BorderSide(color: Color(0xFFFF6B9D), width: 2),
                                     ),
                                     elevation: 0,
                                   ),
@@ -271,7 +268,7 @@ class _DetailPageState extends State<DetailPage> {
                                     children: [
                                       Icon(Icons.shopping_cart_outlined),
                                       SizedBox(width: 8),
-                                      Text('Tambah Keranjang', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                      Text('Add to Cart', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                     ],
                                   ),
                                 ),
@@ -281,7 +278,7 @@ class _DetailPageState extends State<DetailPage> {
                                 child: ElevatedButton(
                                   onPressed: _buyNow,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
+                                    backgroundColor: const Color(0xFFFF6B9D),
                                     padding: const EdgeInsets.symmetric(vertical: 18),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                     elevation: 0,
@@ -291,7 +288,7 @@ class _DetailPageState extends State<DetailPage> {
                                     children: [
                                       Icon(Icons.shopping_bag_outlined, color: Colors.white),
                                       SizedBox(width: 8),
-                                      Text('Beli Sekarang', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                                      Text('Buy Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                                     ],
                                   ),
                                 ),
