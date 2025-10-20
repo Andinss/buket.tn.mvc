@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/bouquet_provider.dart';
+// ignore: unused_import
 import '../providers/cart_provider.dart';
 import '../providers/favorite_provider.dart';
 import '../utils/helpers.dart';

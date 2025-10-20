@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/cart_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/helpers.dart';
-import '../services/firebase_service.dart'; // Tambahkan import ini
+import '../services/firebase_service.dart'; 
 import '../widgets/order_confirmation_dialog.dart';
 import 'main_navigation.dart';
 
@@ -83,6 +83,7 @@ class _CartPageState extends State<CartPage> {
   @override
   Widget build(BuildContext context) {
     final cart = Provider.of<CartProvider>(context);
+    // ignore: unused_local_variable
     final auth = Provider.of<AuthProvider>(context);
 
     if (selectedItems.isEmpty && cart.items.isNotEmpty) {
@@ -285,7 +286,7 @@ class _CartPageState extends State<CartPage> {
                       color: Colors.white,
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(30), 
-                        topRight: Radius.circular(30), // Ditambahkan penutupan kurung
+                        topRight: Radius.circular(30), 
                       ),
                       boxShadow: [
                         BoxShadow(

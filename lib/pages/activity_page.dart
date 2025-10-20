@@ -166,7 +166,6 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
     );
   }
 
-  // ... (method lainnya tetap sama)
   Widget _buildOrdersList(List<Order> orders, String emptyMessage) {
     if (orders.isEmpty) {
       return Center(

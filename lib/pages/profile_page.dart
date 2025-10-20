@@ -175,7 +175,6 @@ class ProfilePage extends StatelessWidget {
               const SizedBox(height: 20),
             ],
 
-            // ... (method lainnya tetap sama)
             _buildSectionHeader(isSeller ? 'Pengaturan Akun' : 'Pengaturan'),
             const SizedBox(height: 12),
             Container(
@@ -280,7 +279,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // ... (method _buildSectionHeader, _buildMenuTile, dan lainnya tetap sama)
   Widget _buildSectionHeader(String title) {
     return Align(
       alignment: Alignment.centerLeft,

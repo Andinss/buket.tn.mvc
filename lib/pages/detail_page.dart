@@ -37,6 +37,7 @@ class _DetailPageState extends State<DetailPage> {
   }
 
   void _buyNow() {
+    // ignore: unused_local_variable
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final cart = Provider.of<CartProvider>(context, listen: false);
     final total = widget.bouquet.price * quantity;

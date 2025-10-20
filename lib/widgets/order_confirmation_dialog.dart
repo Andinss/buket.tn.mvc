@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/cart_item.dart';
 import '../providers/auth_provider.dart';
+// ignore: unused_import
 import '../services/firebase_service.dart';
 import '../utils/helpers.dart';
 
