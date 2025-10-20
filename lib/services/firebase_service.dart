@@ -1,0 +1,238 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
+import '../models/bouquet.dart';
+import '../models/order.dart';
+import '../models/cart_item.dart';
+import '../utils/constants.dart';
+
+class FirebaseService {
+  final FirebaseAuth auth = FirebaseAuth.instance;
+  final FirebaseFirestore db = FirebaseFirestore.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+
+  Future<UserCredential?> signInWithEmail(String email, String password) async {
+    try {
+      return await auth.signInWithEmailAndPassword(
+        email: email, 
+        password: password
+      );
+    } catch (e) {
+      debugPrint('Email sign in error: $e');
+      rethrow;
+    }
+  }
+
+  Future<UserCredential?> registerWithEmail(
+    String email, String password, String name
+  ) async {
+    try {
+      final userCred = await auth.createUserWithEmailAndPassword(
+        email: email, 
+        password: password
+      );
+      await userCred.user?.updateDisplayName(name);
+      final uid = userCred.user!.uid;
+      
+      String role = 'buyer';
+      if (email.toLowerCase() == 'andinn1404@gmail.com') {
+        role = 'seller';
+      }
+      
+      await db.collection(FirestoreCollections.users).doc(uid).set({
+        'displayName': name,
+        'email': email,
+        'role': role,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return userCred;
+    } catch (e) {
+      debugPrint('Email registration error: $e');
+      rethrow;
+    }
+  }
+
+  Future<UserCredential?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return null;
+      
+      final GoogleSignInAuthentication googleAuth = 
+          await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      
+      final userCred = await auth.signInWithCredential(credential);
+      final uid = userCred.user!.uid;
+      final doc = db.collection(FirestoreCollections.users).doc(uid);
+      final snapshot = await doc.get();
+      
+      if (!snapshot.exists) {
+        String role = 'buyer';
+        final email = userCred.user!.email ?? '';
+        if (email.toLowerCase() == 'andinn1404@gmail.com') {
+          role = 'seller';
+        }
+        
+        await doc.set({
+          'displayName': userCred.user!.displayName ?? '',
+          'email': email,
+          'role': role,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+      return userCred;
+    } catch (e) {
+      debugPrint('Google sign in error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> resetPassword(String email) async {
+    try {
+      await auth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      debugPrint('Reset password error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> signOut() async {
+    await _googleSignIn.signOut();
+    await auth.signOut();
+  }
+
+  Future<String?> getUserRole(String uid) async {
+    final snap = await db.collection(FirestoreCollections.users).doc(uid).get();
+    if (!snap.exists) return null;
+    return (snap.data()!['role'] ?? '') as String;
+  }
+
+  Future<void> seedBouquetsIfNeeded() async {
+    final col = db.collection(FirestoreCollections.bouquets);
+    final snap = await col.limit(1).get();
+    if (snap.docs.isNotEmpty) return;
+
+    final sample = [
+      {
+        'name': 'Tulip Garden',
+        'description': 'Buket tulip warna-warni',
+        'price': 150000,
+        'images': [
+          'https://images.unsplash.com/photo-1520763185298-1b434c919102?w=500&h=500&fit=crop',
+        ],
+        'category': 'Elegant',
+        'details': 'Tulip premium dengan berbagai warna elegan. Simbol cinta sempurna dan keindahan abadi.',
+        'sellerId': 'admin',
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+      {
+        'name': 'Rose Romance',
+        'description': 'Buket mawar merah romantis',
+        'price': 200000,
+        'images': [
+          'https://images.unsplash.com/photo-1563241527-3004b7be0adf?w=500&h=500&fit=crop',
+        ],
+        'category': 'Romantic',
+        'details': 'Mawar merah segar yang sempurna untuk ungkapan cinta.',
+        'sellerId': 'admin',
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+    ];
+
+    final batch = db.batch();
+    for (final p in sample) {
+      final doc = col.doc();
+      batch.set(doc, p);
+    }
+    await batch.commit();
+  }
+
+  Future<void> placeOrder(String uid, List<CartItem> items, double total) async {
+    try {
+      final doc = db.collection(FirestoreCollections.orders).doc();
+      await doc.set({
+        'buyerId': uid,
+        'items': items.map((c) => {
+          'bouquetId': c.bouquet.id,
+          'name': c.bouquet.name,
+          'price': c.price,
+          'qty': c.quantity,
+        }).toList(),
+        'total': total,
+        'createdAt': FieldValue.serverTimestamp(),
+        'status': 'placed',
+      });
+      debugPrint('Order placed successfully with ID: ${doc.id}');
+    } catch (e) {
+      debugPrint('Error placing order: $e');
+      rethrow;
+    }
+  }
+
+  Stream<List<Order>> getUserOrders(String uid) {
+    return db.collection(FirestoreCollections.orders)
+        .where('buyerId', isEqualTo: uid)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) => Order.fromDoc(doc)).toList())
+        .handleError((error) {
+          debugPrint('Error in getUserOrders: $error');
+          return <Order>[];
+        });
+  }
+
+  Future<void> toggleFavorite(String uid, String bouquetId) async {
+    final favRef = db.collection(FirestoreCollections.users)
+        .doc(uid)
+        .collection(FirestoreCollections.favorites)
+        .doc(bouquetId);
+        
+    final snap = await favRef.get();
+    if (snap.exists) {
+      await favRef.delete();
+    } else {
+      await favRef.set({'addedAt': FieldValue.serverTimestamp()});
+    }
+  }
+
+  Stream<List<String>> getFavorites(String uid) {
+    return db.collection(FirestoreCollections.users)
+        .doc(uid)
+        .collection(FirestoreCollections.favorites)
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) => doc.id).toList());
+  }
+
+  Future<void> addBouquet(Bouquet bouquet) async {
+    final col = db.collection(FirestoreCollections.bouquets);
+    final data = bouquet.toMap();
+    data['createdAt'] = FieldValue.serverTimestamp();
+    await col.add(data);
+  }
+
+  Future<void> updateBouquet(String id, Bouquet bouquet) async {
+    final docRef = db.collection(FirestoreCollections.bouquets).doc(id);
+    final data = bouquet.toMap();
+    await docRef.set(data, SetOptions(merge: true));
+  }
+
+  Future<void> deleteBouquet(String id) async {
+    await db.collection(FirestoreCollections.bouquets).doc(id).delete();
+  }
+
+  Future<void> updateOrderStatus(String orderId, String status) async {
+    await db.collection(FirestoreCollections.orders)
+        .doc(orderId)
+        .set({'status': status}, SetOptions(merge: true));
+  }
+
+  Future<Map<String, dynamic>?> getUserData(String uid) async {
+    final doc = await db.collection(FirestoreCollections.users).doc(uid).get();
+    return doc.data();
+  }
+}
