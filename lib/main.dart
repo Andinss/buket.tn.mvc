@@ -453,9 +453,10 @@ class AuthProvider with ChangeNotifier {
   User? user;
   String role = '';
   bool initializing = true;
-  // === PERUBAHAN 1: Tambah data profil user ===
   String phoneNumber = '';
   String address = '';
+  String city = '';
+  String postalCode = '';
   String paymentMethod = 'Credit Card';
 
   AuthProvider(this.service) {
@@ -463,13 +464,13 @@ class AuthProvider with ChangeNotifier {
       user = u;
       if (user != null) {
         role = await service.getUserRole(user!.uid) ?? '';
-        // === PERUBAHAN 2: Load data profil tambahan ===
         await _loadUserProfile(user!.uid);
       } else {
         role = '';
-        // === PERUBAHAN 3: Reset data profil ===
         phoneNumber = '';
         address = '';
+        city = '';
+        postalCode = '';
         paymentMethod = 'Credit Card';
       }
       initializing = false;
@@ -477,7 +478,6 @@ class AuthProvider with ChangeNotifier {
     });
   }
 
-  // === PERUBAHAN 4: Method untuk load data profil ===
   Future<void> _loadUserProfile(String uid) async {
     try {
       final userDoc = await service.db.collection('users').doc(uid).get();
@@ -485,6 +485,8 @@ class AuthProvider with ChangeNotifier {
         final data = userDoc.data()!;
         phoneNumber = data['phoneNumber']?.toString() ?? '';
         address = data['address']?.toString() ?? '';
+        city = data['city']?.toString() ?? '';
+        postalCode = data['postalCode']?.toString() ?? '';
         paymentMethod = data['paymentMethod']?.toString() ?? 'Credit Card';
         notifyListeners();
       }
@@ -493,26 +495,26 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // === PERUBAHAN 5: Method untuk update profil ===
-  Future<void> updateProfile(String name, String phone, String address, String paymentMethod) async {
+  Future<void> updateProfile(String name, String phone, String address, String city, String postalCode, String paymentMethod) async {
     if (user == null) return;
     
     try {
-      // Update display name di Firebase Auth
       await user!.updateDisplayName(name);
       
-      // Update data tambahan di Firestore
       await service.db.collection('users').doc(user!.uid).set({
         'displayName': name,
         'phoneNumber': phone,
         'address': address,
+        'city': city,
+        'postalCode': postalCode,
         'paymentMethod': paymentMethod,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       
-      // Update local state
       this.phoneNumber = phone;
       this.address = address;
+      this.city = city;
+      this.postalCode = postalCode;
       this.paymentMethod = paymentMethod;
       
       notifyListeners();
@@ -1687,8 +1689,10 @@ class _DetailPageState extends State<DetailPage> {
             await auth.updateProfile(
               auth.user?.displayName ?? 'User',
               phone,
-              address, // Simpan alamat lengkap saja di profil
-              paymentMethod
+              address,
+              city,
+              postalCode,
+              paymentMethod,
             );
           }
           
@@ -1961,7 +1965,9 @@ class _CartPageState extends State<CartPage> {
             await auth.updateProfile(
               auth.user?.displayName ?? 'User',
               phone,
-              address, // Simpan alamat lengkap saja di profil
+              address,
+              auth.city, // Include city from current profile
+              auth.postalCode, // Include postalCode from current profile
               paymentMethod
             );
           }
@@ -2258,7 +2264,7 @@ class _CartPageState extends State<CartPage> {
   }
 }
 
-// ==================== ACTIVITY PAGE (BUYER) ====================
+// ==================== ACTIVITY PAGE (BUYER) - UPDATED ====================
 class ActivityPage extends StatefulWidget {
   const ActivityPage({super.key});
 
@@ -2321,7 +2327,6 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
           : StreamBuilder<List<Order>>(
               stream: service.getUserOrders(auth.user!.uid),
               builder: (context, snapshot) {
-                // PERBAIKAN: Langsung tampilkan pesan "Belum Ada Pesanan" jika data kosong
                 if (snapshot.hasData && snapshot.data!.isEmpty) {
                   return _buildEmptyOrders();
                 }
@@ -2356,7 +2361,6 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
 
                 final allOrders = snapshot.data ?? [];
                 
-                // Jika tidak ada pesanan, tampilkan pesan "Belum Ada Pesanan"
                 if (allOrders.isEmpty) {
                   return _buildEmptyOrders();
                 }
@@ -2370,15 +2374,10 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                 return TabBarView(
                   controller: _tabController,
                   children: [
-                    // Semua
                     _buildOrdersList(allOrders, 'Belum Ada Pesanan'),
-                    // Diproses
                     _buildOrdersList(placedOrders, 'Tidak ada pesanan yang diproses'),
-                    // Dikemas
                     _buildOrdersList(processingOrders, 'Tidak ada pesanan yang dikemas'),
-                    // Dikirim
                     _buildOrdersList(shippedOrders, 'Tidak ada pesanan yang dikirim'),
-                    // Selesai
                     _buildOrdersList(completedOrders, 'Tidak ada pesanan yang selesai'),
                   ],
                 );
@@ -2454,39 +2453,152 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
         itemCount: orders.length,
         itemBuilder: (context, index) {
           final order = orders[index];
-          final statusColor = getStatusColor(order.status);
-          final statusTextColor = getStatusTextColor(order.status);
-          final statusLabel = getStatusLabel(order.status);
+          return _buildOrderItem(order);
+        },
+      ),
+    );
+  }
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 15),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  // PERBAIKAN: Widget untuk menampilkan item pesanan dengan onTap
+  Widget _buildOrderItem(Order order) {
+    final statusColor = getStatusColor(order.status);
+    final statusTextColor = getStatusTextColor(order.status);
+    final statusLabel = getStatusLabel(order.status);
+
+    return GestureDetector(
+      onTap: () => _showOrderDetailDialog(order),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 15),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Order #${order.id.substring(0, 8).toUpperCase()}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year} ${order.createdAt.hour}:${order.createdAt.minute.toString().padLeft(2, '0')}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: statusColor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusTextColor),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Item Pesanan:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
+                  const SizedBox(height: 8),
+                  ...order.items.map((item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${item['name']} × ${item['qty']}',
+                                style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              formatRupiah(item['price'] * item['qty']),
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF2D3142)),
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Total:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
+                Text(
+                  formatRupiah(order.total.toInt()),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFFF6B9D)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // PERBAIKAN: Method untuk menampilkan dialog detail pesanan
+  void _showOrderDetailDialog(Order order) {
+    final statusColor = getStatusColor(order.status);
+    final statusTextColor = getStatusTextColor(order.status);
+    final statusLabel = getStatusLabel(order.status);
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.all(20),
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxHeight: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Order #${order.id.substring(0, 8).toUpperCase()}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}',
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                          ),
-                        ],
+                    const Icon(Icons.receipt_long, color: Color(0xFFFF6B9D), size: 24),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Detail Pesanan',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D3142),
                       ),
                     ),
+                    const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: statusColor,
                         borderRadius: BorderRadius.circular(20),
@@ -2498,54 +2610,180 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12)),
+              ),
+              
+              // Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Item Pesanan:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
-                      const SizedBox(height: 8),
-                      ...order.items.map((item) => Padding(
+                      // Informasi Pesanan
+                      _buildDetailSection(
+                        title: 'Informasi Pesanan',
+                        children: [
+                          _buildDetailRow('ID Pesanan', '${order.id.substring(0, 8).toUpperCase()}'),
+                          _buildDetailRow('Tanggal', '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}'),
+                          _buildDetailRow('Waktu', '${order.createdAt.hour}:${order.createdAt.minute.toString().padLeft(2, '0')}'),
+                          _buildDetailRow('Status', statusLabel),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Item Pesanan
+                      _buildDetailSection(
+                        title: 'Item Pesanan',
+                        children: [
+                          ...order.items.map((item) => Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Expanded(
-                                  child: Text(
-                                    '${item['name']} × ${item['qty']}',
-                                    style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item['name']?.toString() ?? 'Unknown Item',
+                                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                                      ),
+                                      Text(
+                                        '${item['qty']} × ${formatRupiah(item['price'])}',
+                                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(width: 8),
                                 Text(
-                                  formatRupiah(item['price'] * item['qty']),
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF2D3142)),
+                                  formatRupiah((item['price'] ?? 0) * (item['qty'] ?? 1)),
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                 ),
                               ],
                             ),
                           )),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Total
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF0F5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Total Pembayaran',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2D3142),
+                              ),
+                            ),
+                            Text(
+                              formatRupiah(order.total.toInt()),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFFF6B9D),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Total:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
-                    Text(
-                      formatRupiah(order.total.toInt()),
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFFF6B9D)),
+              ),
+              
+              // Footer
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
                     ),
                   ],
                 ),
-              ],
-            ),
-          );
-        },
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6B9D),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Tutup', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailSection({required String title, required List<Widget> children}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF2D3142),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: children,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2D3142)),
+          ),
+        ],
       ),
     );
   }
@@ -3037,7 +3275,7 @@ class _SellerProductsPageState extends State<SellerProductsPage> {
   }
 }
 
-// ==================== SELLER ORDERS PAGE ====================
+// ==================== SELLER ORDERS PAGE - UPDATED ====================
 class SellerOrdersPage extends StatefulWidget {
   const SellerOrdersPage({super.key});
 
@@ -3141,15 +3379,10 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
             return TabBarView(
               controller: _tabController,
               children: [
-                // Semua
                 _buildSellerOrdersList(allOrders, 'Belum Ada Pesanan'),
-                // Diproses
                 _buildSellerOrdersList(placedOrders, 'Tidak ada pesanan yang diproses'),
-                // Dikemas
                 _buildSellerOrdersList(processingOrders, 'Tidak ada pesanan yang dikemas'),
-                // Dikirim
                 _buildSellerOrdersList(shippedOrders, 'Tidak ada pesanan yang dikirim'),
-                // Selesai
                 _buildSellerOrdersList(completedOrders, 'Tidak ada pesanan yang selesai'),
               ],
             );
@@ -3203,103 +3436,412 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
         itemCount: orders.length,
         itemBuilder: (context, index) {
           final order = orders[index];
-          final statusColor = getStatusColor(order.status);
-          final statusTextColor = getStatusTextColor(order.status);
-          final statusLabel = getStatusLabel(order.status);
-
-          return Container(
-            margin: const EdgeInsets.only(bottom: 15),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Order #${order.id.substring(0, 8).toUpperCase()}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year} ${order.createdAt.hour}:${order.createdAt.minute.toString().padLeft(2, '0')}',
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                          ),
-                        ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => _showChangeStatusDialog(context, order),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: statusColor,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: statusTextColor, width: 1.5),
-                        ),
-                        child: Text(
-                          statusLabel,
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusTextColor),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Item:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      if (order.items.isEmpty)
-                        const Text('Tidak ada item', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                      ...order.items.map((item) {
-                        final itemName = item['name']?.toString() ?? 'Unknown Item';
-                        final quantity = (item['qty'] is int) ? item['qty'] as int : 1;
-                        final price = (item['price'] is int) ? item['price'] as int : 0;
-                        
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text('$itemName × $quantity', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
-                              ),
-                              Text(formatRupiah(price * quantity), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Total:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                    Text(formatRupiah(order.total.toInt()), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFFF6B9D))),
-                  ],
-                ),
-              ],
-            ),
-          );
+          return _buildSellerOrderItem(order);
         },
       ),
     );
   }
 
-  void _showChangeStatusDialog(BuildContext context, Order order) {
+  // PERBAIKAN: Widget untuk menampilkan item pesanan seller dengan onTap
+  Widget _buildSellerOrderItem(Order order) {
+    final statusColor = getStatusColor(order.status);
+    final statusTextColor = getStatusTextColor(order.status);
+    final statusLabel = getStatusLabel(order.status);
+
+    return GestureDetector(
+      onTap: () => _showSellerOrderDetailDialog(order),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 15),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Order #${order.id.substring(0, 8).toUpperCase()}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year} ${order.createdAt.hour}:${order.createdAt.minute.toString().padLeft(2, '0')}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => _showChangeStatusDialog(order),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: statusTextColor, width: 1.5),
+                    ),
+                    child: Text(
+                      statusLabel,
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusTextColor),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Item:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  if (order.items.isEmpty)
+                    const Text('Tidak ada item', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ...order.items.map((item) {
+                    final itemName = item['name']?.toString() ?? 'Unknown Item';
+                    final quantity = (item['qty'] is int) ? item['qty'] as int : 1;
+                    final price = (item['price'] is int) ? item['price'] as int : 0;
+                    
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text('$itemName × $quantity', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                          ),
+                          Text(formatRupiah(price * quantity), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Total:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                Text(formatRupiah(order.total.toInt()), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFFF6B9D))),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // PERBAIKAN: Method untuk menampilkan dialog detail pesanan seller
+  void _showSellerOrderDetailDialog(Order order) {
+    final statusColor = getStatusColor(order.status);
+    final statusTextColor = getStatusTextColor(order.status);
+    final statusLabel = getStatusLabel(order.status);
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.all(20),
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxHeight: 700),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.receipt_long, color: Color(0xFFFF6B9D), size: 24),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Detail Pesanan',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D3142),
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        statusLabel,
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusTextColor),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Informasi Pembeli
+                      FutureBuilder<DocumentSnapshot>(
+                        future: FirebaseFirestore.instance.collection('users').doc(order.buyerId).get(),
+                        builder: (context, userSnapshot) {
+                          if (userSnapshot.connectionState == ConnectionState.waiting) {
+                            return _buildDetailSection(
+                              title: 'Informasi Pembeli',
+                              children: [
+                                const Center(child: CircularProgressIndicator(color: Color(0xFFFF6B9D))),
+                              ],
+                            );
+                          }
+
+                          if (userSnapshot.hasError || !userSnapshot.hasData) {
+                            return _buildDetailSection(
+                              title: 'Informasi Pembeli',
+                              children: [
+                                _buildDetailRow('Nama', 'Tidak tersedia'),
+                                _buildDetailRow('Email', 'Tidak tersedia'),
+                                _buildDetailRow('Telepon', 'Tidak tersedia'),
+                                _buildDetailRow('Alamat', 'Tidak tersedia'),
+                              ],
+                            );
+                          }
+
+                          final userData = userSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+                          final displayName = userData['displayName']?.toString() ?? 'Tidak tersedia';
+                          final email = userData['email']?.toString() ?? 'Tidak tersedia';
+                          final phone = userData['phoneNumber']?.toString() ?? 'Tidak tersedia';
+                          final address = userData['address']?.toString() ?? 'Tidak tersedia';
+                          final city = userData['city']?.toString() ?? '';
+                          final postalCode = userData['postalCode']?.toString() ?? '';
+
+                          String fullAddress = address;
+                          if (city.isNotEmpty) fullAddress += ', $city';
+                          if (postalCode.isNotEmpty) fullAddress += ', $postalCode';
+
+                          return _buildDetailSection(
+                            title: 'Informasi Pembeli',
+                            children: [
+                              _buildDetailRow('Nama', displayName),
+                              _buildDetailRow('Email', email),
+                              _buildDetailRow('Telepon', phone.isEmpty ? 'Tidak tersedia' : phone),
+                              _buildDetailRow('Alamat', fullAddress.isEmpty ? 'Tidak tersedia' : fullAddress),
+                            ],
+                          );
+                        },
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Informasi Pesanan
+                      _buildDetailSection(
+                        title: 'Informasi Pesanan',
+                        children: [
+                          _buildDetailRow('ID Pesanan', '${order.id.substring(0, 8).toUpperCase()}'),
+                          _buildDetailRow('Tanggal', '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}'),
+                          _buildDetailRow('Waktu', '${order.createdAt.hour}:${order.createdAt.minute.toString().padLeft(2, '0')}'),
+                          _buildDetailRow('Status', statusLabel),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Item Pesanan
+                      _buildDetailSection(
+                        title: 'Item Pesanan',
+                        children: [
+                          ...order.items.map((item) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item['name']?.toString() ?? 'Unknown Item',
+                                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                                      ),
+                                      Text(
+                                        '${item['qty']} × ${formatRupiah(item['price'])}',
+                                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  formatRupiah((item['price'] ?? 0) * (item['qty'] ?? 1)),
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          )),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Total
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF0F5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Total Pembayaran',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2D3142),
+                              ),
+                            ),
+                            Text(
+                              formatRupiah(order.total.toInt()),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFFF6B9D),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+              
+              // Footer dengan Tombol Ubah Status
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          side: const BorderSide(color: Color(0xFFFF6B9D)),
+                        ),
+                        child: const Text('Tutup', style: TextStyle(color: Color(0xFFFF6B9D), fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showChangeStatusDialog(order);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF6B9D),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Ubah Status', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailSection({required String title, required List<Widget> children}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF2D3142),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: children,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2D3142)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Method untuk mengubah status pesanan (tetap sama)
+  void _showChangeStatusDialog(Order order) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -3631,7 +4173,7 @@ class SellerAnalyticsPage extends StatelessWidget {
   }
 }
 
-// ==================== PROFILE PAGE ====================
+// ==================== PROFILE PAGE - UPDATED FOR SELLER WITH PINK THEME ====================
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -3643,12 +4185,23 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
+    final isSeller = auth.role == 'seller';
     
-    // Ambil nama user dengan benar
     String displayName = auth.user?.displayName ?? 'User';
-    // Jika displayName masih 'User' tapi ada email, gunakan bagian sebelum @
     if (displayName == 'User' && auth.user?.email != null) {
       displayName = auth.user!.email!.split('@').first;
+    }
+
+    // Format alamat lengkap
+    String fullAddress = '';
+    if (auth.address.isNotEmpty) {
+      fullAddress = auth.address;
+      if (auth.city.isNotEmpty) {
+        fullAddress += ', ${auth.city}';
+      }
+      if (auth.postalCode.isNotEmpty) {
+        fullAddress += ', ${auth.postalCode}';
+      }
     }
     
     return Scaffold(
@@ -3656,7 +4209,10 @@ class _ProfilePageState extends State<ProfilePage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Profile', style: TextStyle(color: Color(0xFF831843), fontWeight: FontWeight.bold, fontSize: 20)),
+        title: Text(
+          isSeller ? 'Profile Seller' : 'Profile',
+          style: const TextStyle(color: Color(0xFF831843), fontWeight: FontWeight.bold, fontSize: 20)
+        ),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
@@ -3676,7 +4232,12 @@ class _ProfilePageState extends State<ProfilePage> {
                       colors: [Color(0xFFDB2777), Color(0xFFF472B6)],
                     ),
                   ),
-                  child: const Center(child: Text('👤', style: TextStyle(fontSize: 60))),
+                  child: Center(
+                    child: Text(
+                      isSeller ? '🏪' : '👤',
+                      style: const TextStyle(fontSize: 60)
+                    ),
+                  ),
                 ),
                 Positioned(
                   bottom: 0,
@@ -3687,13 +4248,16 @@ class _ProfilePageState extends State<ProfilePage> {
                       color: Color(0xFFFF6B9D),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                    child: Icon(
+                      isSeller ? Icons.store : Icons.camera_alt,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            // Tampilkan nama user yang benar
             Text(displayName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF831843))),
             const SizedBox(height: 4),
             Text(auth.user?.email ?? 'email@example.com', style: const TextStyle(fontSize: 14, color: Color(0xFF9CA3AF))),
@@ -3705,8 +4269,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                auth.role.isNotEmpty ? auth.role[0].toUpperCase() + auth.role.substring(1) : 'User',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFDB2777)),
+                isSeller ? 'Seller' : 'Buyer',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFDB2777),
+                ),
               ),
             ),
             const SizedBox(height: 32),
@@ -3728,11 +4296,84 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             const SizedBox(height: 20),
 
-            // Menu Items
+            if (isSeller) ...[
+              // SECTION: TOKO UNTUK SELLER
+              _buildSectionHeader('Menu Toko'),
+              const SizedBox(height: 12),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
+                ),
+                child: Column(
+                  children: [
+                    _buildMenuTile(
+                      icon: Icons.store_rounded,
+                      title: 'Kelola Produk',
+                      subtitle: 'Tambah, edit, dan hapus produk',
+                      onTap: () {
+                        final mainNavState = context.findAncestorStateOfType<_MainNavigationState>();
+                        if (mainNavState != null) {
+                          mainNavState.setState(() {
+                            mainNavState._selectedIndex = 0; // Seller Products Page
+                          });
+                        }
+                      },
+                      color: const Color(0xFFFF6B9D),
+                    ),
+                    const Divider(height: 1),
+                    _buildMenuTile(
+                      icon: Icons.receipt_long_rounded,
+                      title: 'Pesanan Masuk',
+                      subtitle: 'Lihat dan kelola pesanan',
+                      onTap: () {
+                        final mainNavState = context.findAncestorStateOfType<_MainNavigationState>();
+                        if (mainNavState != null) {
+                          mainNavState.setState(() {
+                            mainNavState._selectedIndex = 1; // Seller Orders Page
+                          });
+                        }
+                      },
+                      color: const Color(0xFFFF6B9D),
+                    ),
+                    const Divider(height: 1),
+                    _buildMenuTile(
+                      icon: Icons.analytics_rounded,
+                      title: 'Analytics & Laporan',
+                      subtitle: 'Lihat statistik penjualan',
+                      onTap: () {
+                        final mainNavState = context.findAncestorStateOfType<_MainNavigationState>();
+                        if (mainNavState != null) {
+                          mainNavState.setState(() {
+                            mainNavState._selectedIndex = 2; // Seller Analytics Page
+                          });
+                        }
+                      },
+                      color: const Color(0xFFFF6B9D),
+                    ),
+                    const Divider(height: 1),
+                    _buildMenuTile(
+                      icon: Icons.business_center_rounded,
+                      title: 'Informasi Toko',
+                      subtitle: 'Kelola profil toko Anda',
+                      onTap: () => _showStoreInfoDialog(context, auth),
+                      color: const Color(0xFFFF6B9D),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+
+            // SECTION: PENGATURAN AKUN (UNTUK SEMUA)
+            _buildSectionHeader(isSeller ? 'Pengaturan Akun' : 'Pengaturan'),
+            const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFFAFAFA),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
               ),
               child: Column(
                 children: [
@@ -3741,27 +4382,32 @@ class _ProfilePageState extends State<ProfilePage> {
                     title: 'Nomor Telepon',
                     subtitle: auth.phoneNumber.isEmpty ? 'Tambahkan nomor telepon' : auth.phoneNumber,
                     onTap: () => _showPhoneDialog(context, auth),
+                    color: const Color(0xFFDB2777),
                   ),
                   const Divider(height: 1),
                   _buildMenuTile(
                     icon: Icons.location_on,
                     title: 'Alamat',
-                    subtitle: auth.address.isEmpty ? 'Kelola alamat pengiriman' : auth.address,
+                    subtitle: fullAddress.isEmpty ? 'Kelola alamat pengiriman' : fullAddress,
                     onTap: () => _showAddressDialog(context, auth),
+                    color: const Color(0xFFDB2777),
                   ),
-                  const Divider(height: 1),
-                  _buildMenuTile(
-                    icon: Icons.payment,
-                    title: 'Metode Pembayaran',
-                    subtitle: auth.paymentMethod.isEmpty ? 'Kelola metode pembayaran' : auth.paymentMethod,
-                    onTap: () => _showPaymentDialog(context, auth),
-                  ),
+                  if (!isSeller) const Divider(height: 1),
+                  if (!isSeller)
+                    _buildMenuTile(
+                      icon: Icons.payment,
+                      title: 'Metode Pembayaran',
+                      subtitle: auth.paymentMethod.isEmpty ? 'Kelola metode pembayaran' : auth.paymentMethod,
+                      onTap: () => _showPaymentDialog(context, auth),
+                      color: const Color(0xFFDB2777),
+                    ),
                   const Divider(height: 1),
                   _buildMenuTile(
                     icon: Icons.security,
                     title: 'Keamanan',
                     subtitle: 'Ubah password dan keamanan',
                     onTap: () => _showSecurityDialog(context),
+                    color: const Color(0xFFDB2777),
                   ),
                   const Divider(height: 1),
                   _buildMenuTile(
@@ -3769,13 +4415,28 @@ class _ProfilePageState extends State<ProfilePage> {
                     title: 'Notifikasi',
                     subtitle: 'Atur pengaturan notifikasi',
                     onTap: () => _showNotificationSettings(context),
+                    color: const Color(0xFFDB2777),
                   ),
-                  const Divider(height: 1),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // SECTION: BANTUAN (UNTUK SEMUA)
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
+              ),
+              child: Column(
+                children: [
                   _buildMenuTile(
                     icon: Icons.help_outline,
-                    title: 'Bantuan',
+                    title: 'Bantuan & Dukungan',
                     subtitle: 'Hubungi customer service',
                     onTap: () => _showHelpDialog(context),
+                    color: const Color(0xFFDB2777),
                   ),
                   const Divider(height: 1),
                   _buildMenuTile(
@@ -3783,6 +4444,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     title: 'Tentang Kami',
                     subtitle: 'Informasi tentang aplikasi',
                     onTap: () => _showAboutDialog(context),
+                    color: const Color(0xFFDB2777),
                   ),
                 ],
               ),
@@ -3811,31 +4473,174 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Widget _buildSectionHeader(String title) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF2D3142),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMenuTile({
     required IconData icon,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    required Color color,
   }) {
     return ListTile(
-      leading: Icon(icon, color: const Color(0xFFDB2777), size: 24),
-      title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      leading: Icon(icon, color: color, size: 24),
+      title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2D3142))),
+      subtitle: Text(subtitle, 
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
       trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     );
   }
 
-  // Method untuk edit nomor telepon
-  void _showPhoneDialog(BuildContext context, AuthProvider auth) {
-    final phoneController = TextEditingController(text: auth.phoneNumber);
+  // PERBAIKAN: Method untuk menampilkan dialog informasi toko (SELLER ONLY)
+  void _showStoreInfoDialog(BuildContext context, AuthProvider auth) {
+    final storeNameController = TextEditingController(text: auth.user?.displayName ?? '');
+    final storeDescController = TextEditingController();
+    final storeAddressController = TextEditingController(text: auth.address);
+    final storePhoneController = TextEditingController(text: auth.phoneNumber);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Nomor Telepon'),
+        title: const Row(
+          children: [
+            Icon(Icons.store_rounded, color: Color(0xFFFF6B9D)),
+            SizedBox(width: 8),
+            Text('Informasi Toko', style: TextStyle(color: Color(0xFFDB2777))),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF0F5),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFFF6B9D), width: 2),
+                ),
+                child: const Icon(Icons.store_rounded, size: 40, color: Color(0xFFFF6B9D)),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: storeNameController,
+                decoration: InputDecoration(
+                  labelText: 'Nama Toko',
+                  prefixIcon: const Icon(Icons.business_rounded, color: Color(0xFFFF6B9D)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: storeDescController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Deskripsi Toko',
+                  hintText: 'Deskripsikan toko Anda...',
+                  prefixIcon: const Icon(Icons.description_rounded, color: Color(0xFFFF6B9D)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: storeAddressController,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: 'Alamat Toko',
+                  prefixIcon: const Icon(Icons.location_on_rounded, color: Color(0xFFFF6B9D)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: storePhoneController,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  labelText: 'Telepon Toko',
+                  prefixIcon: const Icon(Icons.phone_rounded, color: Color(0xFFFF6B9D)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Informasi toko akan ditampilkan kepada pembeli',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                // Simpan informasi toko
+                await auth.updateProfile(
+                  storeNameController.text,
+                  storePhoneController.text,
+                  storeAddressController.text,
+                  auth.city,
+                  auth.postalCode,
+                  auth.paymentMethod
+                );
+                
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Informasi toko berhasil diperbarui!'),
+                    backgroundColor: Color(0xFFFF6B9D),
+                  ),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B9D)),
+            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Method untuk edit nomor telepon
+  void _showPhoneDialog(BuildContext context, AuthProvider auth) {
+    final phoneController = TextEditingController(text: auth.phoneNumber);
+    final isSeller = auth.role == 'seller';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          isSeller ? 'Telepon Toko' : 'Nomor Telepon',
+          style: const TextStyle(color: Color(0xFFDB2777)),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -3844,20 +4649,24 @@ class _ProfilePageState extends State<ProfilePage> {
               decoration: InputDecoration(
                 labelText: 'Nomor Telepon',
                 hintText: 'Contoh: 081234567890',
-                prefixIcon: const Icon(Icons.phone, color: Color(0xFFDB2777)),
+                prefixIcon: const Icon(Icons.phone, color: Color(0xFFFF6B9D)),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
               keyboardType: TextInputType.phone,
             ),
             const SizedBox(height: 12),
-            const Text('Nomor telepon akan digunakan untuk konfirmasi pesanan', 
-                style: TextStyle(fontSize: 11, color: Colors.grey)),
+            Text(
+              isSeller 
+                  ? 'Nomor telepon toko akan ditampilkan kepada pembeli'
+                  : 'Nomor telepon akan digunakan untuk konfirmasi pesanan',
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+            ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -3873,11 +4682,16 @@ class _ProfilePageState extends State<ProfilePage> {
                   auth.user?.displayName ?? 'User',
                   phoneController.text,
                   auth.address,
+                  auth.city,
+                  auth.postalCode,
                   auth.paymentMethod
                 );
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Nomor telepon berhasil diperbarui!'), backgroundColor: Color(0xFFDB2777)),
+                  SnackBar(
+                    content: Text(isSeller ? 'Telepon toko berhasil diperbarui!' : 'Nomor telepon berhasil diperbarui!'),
+                    backgroundColor: const Color(0xFFFF6B9D),
+                  ),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -3885,7 +4699,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDB2777)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B9D)
+            ),
             child: const Text('Simpan', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -3893,17 +4709,21 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // PERBAIKAN: Method untuk edit alamat - sekarang menyimpan kota dan kode pos
+  // Method untuk edit alamat lengkap
   void _showAddressDialog(BuildContext context, AuthProvider auth) {
     final addressController = TextEditingController(text: auth.address);
-    final cityController = TextEditingController();
-    final postalCodeController = TextEditingController();
+    final cityController = TextEditingController(text: auth.city);
+    final postalCodeController = TextEditingController(text: auth.postalCode);
+    final isSeller = auth.role == 'seller';
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Alamat Pengiriman'),
+        title: Text(
+          isSeller ? 'Alamat Toko' : 'Alamat Pengiriman',
+          style: const TextStyle(color: Color(0xFFDB2777)),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -3913,7 +4733,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 maxLines: 3,
                 decoration: InputDecoration(
                   labelText: 'Alamat Lengkap',
-                  prefixIcon: const Icon(Icons.location_on, color: Color(0xFFDB2777)),
+                  hintText: 'Masukkan alamat lengkap',
+                  prefixIcon: const Icon(Icons.location_on, color: Color(0xFFFF6B9D)),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
@@ -3922,7 +4743,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 controller: cityController,
                 decoration: InputDecoration(
                   labelText: 'Kota/Kabupaten',
-                  prefixIcon: const Icon(Icons.location_city, color: Color(0xFFDB2777)),
+                  prefixIcon: const Icon(Icons.location_city, color: Color(0xFFFF6B9D)),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
@@ -3932,7 +4753,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Kode Pos',
-                  prefixIcon: const Icon(Icons.markunread_mailbox, color: Color(0xFFDB2777)),
+                  prefixIcon: const Icon(Icons.markunread_mailbox, color: Color(0xFFFF6B9D)),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
@@ -3942,7 +4763,7 @@ class _ProfilePageState extends State<ProfilePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -3954,24 +4775,21 @@ class _ProfilePageState extends State<ProfilePage> {
               }
 
               try {
-                final service = FirebaseService();
-                // PERBAIKAN: Simpan alamat lengkap dengan kota dan kode pos ke Firestore
-                await service.db.collection('users').doc(auth.user!.uid).set({
-                  'displayName': auth.user?.displayName ?? 'User',
-                  'phoneNumber': auth.phoneNumber,
-                  'address': addressController.text,
-                  'city': cityController.text,
-                  'postalCode': postalCodeController.text,
-                  'paymentMethod': auth.paymentMethod,
-                  'updatedAt': FieldValue.serverTimestamp(),
-                }, SetOptions(merge: true));
-
-                // Update local state
-                auth.address = addressController.text;
+                await auth.updateProfile(
+                  auth.user?.displayName ?? 'User',
+                  auth.phoneNumber,
+                  addressController.text,
+                  cityController.text,
+                  postalCodeController.text,
+                  auth.paymentMethod
+                );
                 
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Alamat berhasil diperbarui!'), backgroundColor: Color(0xFFDB2777)),
+                  SnackBar(
+                    content: Text(isSeller ? 'Alamat toko berhasil diperbarui!' : 'Alamat berhasil diperbarui!'),
+                    backgroundColor: const Color(0xFFFF6B9D),
+                  ),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -3979,7 +4797,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDB2777)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B9D)
+            ),
             child: const Text('Simpan', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -3987,7 +4807,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Method untuk edit metode pembayaran
+  // Method untuk edit metode pembayaran (HANYA BUYER)
   void _showPaymentDialog(BuildContext context, AuthProvider auth) {
     String selectedMethod = auth.paymentMethod.isNotEmpty ? 
         (auth.paymentMethod == 'Credit Card' ? 'Transfer Bank' : auth.paymentMethod) 
@@ -4004,7 +4824,7 @@ class _ProfilePageState extends State<ProfilePage> {
         builder: (context, setState) {
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: const Text('Metode Pembayaran'),
+            title: const Text('Metode Pembayaran', style: TextStyle(color: Color(0xFFDB2777))),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -4013,14 +4833,14 @@ class _ProfilePageState extends State<ProfilePage> {
                   value: method,
                   groupValue: selectedMethod,
                   onChanged: (value) => setState(() => selectedMethod = value!),
-                  activeColor: const Color(0xFFDB2777),
+                  activeColor: const Color(0xFFFF6B9D),
                 )),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Batal'),
+                child: const Text('Batal', style: TextStyle(color: Colors.grey)),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -4029,11 +4849,13 @@ class _ProfilePageState extends State<ProfilePage> {
                       auth.user?.displayName ?? 'User',
                       auth.phoneNumber,
                       auth.address,
+                      auth.city,
+                      auth.postalCode,
                       selectedMethod
                     );
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Metode pembayaran berhasil diperbarui!'), backgroundColor: Color(0xFFDB2777)),
+                      const SnackBar(content: Text('Metode pembayaran berhasil diperbarui!'), backgroundColor: Color(0xFFFF6B9D)),
                     );
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -4041,7 +4863,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     );
                   }
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDB2777)),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B9D)),
                 child: const Text('Simpan', style: TextStyle(color: Colors.white)),
               ),
             ],
@@ -4051,14 +4873,19 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // Method untuk edit profil
   void _showEditProfileDialog(BuildContext context, AuthProvider auth) {
     final nameController = TextEditingController(text: auth.user?.displayName ?? '');
+    final isSeller = auth.role == 'seller';
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Edit Profile'),
+        title: Text(
+          isSeller ? 'Edit Profil Toko' : 'Edit Profile',
+          style: const TextStyle(color: Color(0xFFDB2777)),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -4066,8 +4893,8 @@ class _ProfilePageState extends State<ProfilePage> {
               TextField(
                 controller: nameController,
                 decoration: InputDecoration(
-                  labelText: 'Nama Lengkap',
-                  prefixIcon: const Icon(Icons.person, color: Color(0xFFDB2777)),
+                  labelText: 'Nama',
+                  prefixIcon: const Icon(Icons.person, color: Color(0xFFFF6B9D)),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
@@ -4081,19 +4908,21 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 controller: TextEditingController(text: auth.user?.email ?? ''),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Untuk mengubah nomor telepon, alamat, dan metode pembayaran, silakan gunakan menu yang tersedia di halaman profile.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
+              if (isSeller) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Untuk mengubah informasi toko lainnya, gunakan menu "Informasi Toko"',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -4109,11 +4938,16 @@ class _ProfilePageState extends State<ProfilePage> {
                   nameController.text,
                   auth.phoneNumber,
                   auth.address,
+                  auth.city,
+                  auth.postalCode,
                   auth.paymentMethod
                 );
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profile berhasil diperbarui!'), backgroundColor: Color(0xFFDB2777)),
+                  SnackBar(
+                    content: Text(isSeller ? 'Profil toko berhasil diperbarui!' : 'Profile berhasil diperbarui!'),
+                    backgroundColor: const Color(0xFFFF6B9D),
+                  ),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -4121,7 +4955,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDB2777)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B9D)
+            ),
             child: const Text('Simpan', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -4409,49 +5245,51 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
   }
 
   // PERBAIKAN: Method untuk load data user dari Firestore
-  Future<void> _loadUserData() async {
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.auth.user!.uid)
-          .get();
+Future<void> _loadUserData() async {
+  try {
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.auth.user!.uid)
+        .get();
 
-      if (userDoc.exists) {
-        final data = userDoc.data()!;
-        setState(() {
-          _nameController.text = data['displayName']?.toString() ?? '';
-          _phoneController.text = data['phoneNumber']?.toString() ?? '';
-          _addressController.text = data['address']?.toString() ?? '';
-          _cityController.text = data['city']?.toString() ?? '';
-          _postalCodeController.text = data['postalCode']?.toString() ?? '';
-          
-          String paymentMethod = data['paymentMethod']?.toString() ?? 'Transfer Bank';
-          _selectedPaymentMethod = paymentMethod.isEmpty ? 'Transfer Bank' : paymentMethod;
-        });
-      } else {
-        // Jika dokumen tidak ada, isi dari auth provider
-        setState(() {
-          _nameController.text = widget.auth.user?.displayName ?? '';
-          _phoneController.text = widget.auth.phoneNumber;
-          _addressController.text = widget.auth.address;
-          _selectedPaymentMethod = widget.auth.paymentMethod.isNotEmpty 
-              ? (widget.auth.paymentMethod == 'Credit Card' ? 'Transfer Bank' : widget.auth.paymentMethod)
-              : 'Transfer Bank';
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading user data: $e');
-      // Fallback ke auth provider
+    if (userDoc.exists) {
+      final data = userDoc.data()!;
+      setState(() {
+        _nameController.text = data['displayName']?.toString() ?? '';
+        _phoneController.text = data['phoneNumber']?.toString() ?? '';
+        _addressController.text = data['address']?.toString() ?? '';
+        _cityController.text = data['city']?.toString() ?? '';
+        _postalCodeController.text = data['postalCode']?.toString() ?? '';
+        
+        String paymentMethod = data['paymentMethod']?.toString() ?? 'Transfer Bank';
+        _selectedPaymentMethod = paymentMethod.isEmpty ? 'Transfer Bank' : paymentMethod;
+      });
+    } else {
       setState(() {
         _nameController.text = widget.auth.user?.displayName ?? '';
         _phoneController.text = widget.auth.phoneNumber;
         _addressController.text = widget.auth.address;
+        _cityController.text = widget.auth.city;
+        _postalCodeController.text = widget.auth.postalCode;
         _selectedPaymentMethod = widget.auth.paymentMethod.isNotEmpty 
             ? (widget.auth.paymentMethod == 'Credit Card' ? 'Transfer Bank' : widget.auth.paymentMethod)
             : 'Transfer Bank';
       });
     }
+  } catch (e) {
+    debugPrint('Error loading user data: $e');
+    setState(() {
+      _nameController.text = widget.auth.user?.displayName ?? '';
+      _phoneController.text = widget.auth.phoneNumber;
+      _addressController.text = widget.auth.address;
+      _cityController.text = widget.auth.city;
+      _postalCodeController.text = widget.auth.postalCode;
+      _selectedPaymentMethod = widget.auth.paymentMethod.isNotEmpty 
+          ? (widget.auth.paymentMethod == 'Credit Card' ? 'Transfer Bank' : widget.auth.paymentMethod)
+          : 'Transfer Bank';
+    });
   }
+}
 
   @override
   void dispose() {
