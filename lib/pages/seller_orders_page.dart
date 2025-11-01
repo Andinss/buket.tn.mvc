@@ -381,7 +381,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> with SingleTickerPr
                       _buildDetailSection(
                         title: 'Informasi Pesanan',
                         children: [
-                          _buildDetailRow('ID Pesanan', '${order.id.substring(0, 8).toUpperCase()}'),
+                          _buildDetailRow('ID Pesanan', order.id.substring(0, 8).toUpperCase()),
                           _buildDetailRow('Tanggal', '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}'),
                           _buildDetailRow('Waktu', '${order.createdAt.hour}:${order.createdAt.minute.toString().padLeft(2, '0')}'),
                           _buildDetailRow('Status', statusLabel),

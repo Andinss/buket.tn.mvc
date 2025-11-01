@@ -67,7 +67,7 @@ class AuthProvider with ChangeNotifier {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       
-      this.phoneNumber = phone;
+      phoneNumber = phone;
       this.address = address;
       this.city = city;
       this.postalCode = postalCode;

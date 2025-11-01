@@ -1,3 +1,6 @@
+import 'package:buket.tn.mvc/pages/address_management.dart';
+import 'package:buket.tn.mvc/pages/custom_bouquet.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -174,7 +177,38 @@ class ProfilePage extends StatelessWidget {
               ),
               const SizedBox(height: 20),
             ],
-
+              
+              if (!isSeller) ...[
+  _buildSectionHeader('Layanan Khusus'),
+  const SizedBox(height: 12),
+  Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
+    ),
+    child: Column(
+      children: [
+        _buildMenuTile(
+          icon: Icons.auto_awesome,
+          title: 'Custom Bouquet',
+          subtitle: 'Buat buket sesuai budget & preferensi',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CustomBouquetPage())),
+          color: const Color(0xFFDB2777),
+        ),
+        const Divider(height: 1),
+        _buildMenuTile(
+          icon: Icons.location_on_outlined,
+          title: 'Kelola Alamat',
+          subtitle: 'Atur alamat pengiriman Anda',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AddressManagementPage())),
+          color: const Color(0xFFDB2777),
+        ),
+      ],
+    ),
+  ),
+  const SizedBox(height: 20),
+],
             _buildSectionHeader(isSeller ? 'Pengaturan Akun' : 'Pengaturan'),
             const SizedBox(height: 12),
             Container(
@@ -194,12 +228,12 @@ class ProfilePage extends StatelessWidget {
                   ),
                   const Divider(height: 1),
                   _buildMenuTile(
-                    icon: Icons.location_on,
-                    title: 'Alamat',
-                    subtitle: fullAddress.isEmpty ? 'Kelola alamat pengiriman' : fullAddress,
-                    onTap: () => _showAddressDialog(context, auth),
-                    color: const Color(0xFFDB2777),
-                  ),
+  icon: Icons.location_on,
+  title: 'Alamat Utama',
+  subtitle: fullAddress.isEmpty ? 'Belum ada alamat utama' : fullAddress,
+  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AddressManagementPage())),
+  color: const Color(0xFFDB2777),
+),
                   if (!isSeller) const Divider(height: 1),
                   if (!isSeller)
                     _buildMenuTile(
@@ -877,21 +911,21 @@ class ProfilePage extends StatelessWidget {
                     subtitle: const Text('Terima notifikasi via email'),
                     value: emailNotif,
                     onChanged: (value) => setState(() => emailNotif = value),
-                    activeColor: const Color(0xFFDB2777),
+                    activeThumbColor: const Color(0xFFDB2777),
                   ),
                   SwitchListTile(
                     title: const Text('SMS Notification'),
                     subtitle: const Text('Terima notifikasi via SMS'),
                     value: smsNotif,
                     onChanged: (value) => setState(() => smsNotif = value),
-                    activeColor: const Color(0xFFDB2777),
+                    activeThumbColor: const Color(0xFFDB2777),
                   ),
                   SwitchListTile(
                     title: const Text('Push Notification'),
                     subtitle: const Text('Terima notifikasi push app'),
                     value: pushNotif,
                     onChanged: (value) => setState(() => pushNotif = value),
-                    activeColor: const Color(0xFFDB2777),
+                    activeThumbColor: const Color(0xFFDB2777),
                   ),
                 ],
               ),

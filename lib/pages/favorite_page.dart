@@ -1,4 +1,4 @@
-import 'package:buket_tn/models/bouquet.dart';
+import 'package:buket.tn.mvc/models/bouquet.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 

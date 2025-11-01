@@ -143,7 +143,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: const Text('🌹', style: TextStyle(fontSize: 60)),
                   ),
                   const SizedBox(height: 30),
-                  const Text('Toko Bunga Cantik', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const Text('TOKO BUKET_TN', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 2)),
                   const SizedBox(height: 8),
                   const Text('Bunga Segar Setiap Hari', style: TextStyle(fontSize: 16, color: Colors.white70)),
                   const SizedBox(height: 40),

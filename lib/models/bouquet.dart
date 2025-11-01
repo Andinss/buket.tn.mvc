@@ -21,27 +21,48 @@ class Bouquet {
     required this.sellerId,
   });
 
-  factory Bouquet.fromDoc(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>;
+  // 🔹 Convert ke Map untuk Firebase
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'name': name,
+        'description': description,
+        'price': price,
+        'images': images,
+        'category': category,
+        'details': details,
+        'sellerId': sellerId,
+      };
+
+  // 🔹 Ambil data dari Map/Firebase
+  factory Bouquet.fromMap(Map<String, dynamic> map) {
     return Bouquet(
-      id: doc.id,
-      name: d['name'] ?? '',
-      description: d['description'] ?? '',
-      price: d['price'] ?? 0,
-      images: List<String>.from(d['images'] ?? []),
-      category: d['category'] ?? '',
-      details: d['details'] ?? '',
-      sellerId: d['sellerId'] ?? '',
+      id: map['id'] ?? '',
+      name: map['name'] ?? '',
+      description: map['description'] ?? '',
+      price: map['price'] ?? 0,
+      images: map['images'] != null
+          ? List<String>.from(map['images'])
+          : [],
+      category: map['category'] ?? '',
+      details: map['details'] ?? '',
+      sellerId: map['sellerId'] ?? '',
     );
   }
 
-  Map<String, dynamic> toMap() => {
-    'name': name,
-    'description': description,
-    'price': price,
-    'images': images,
-    'category': category,
-    'details': details,
-    'sellerId': sellerId,
-  };
+  // 🔹 Ambil data langsung dari DocumentSnapshot Firestore
+  factory Bouquet.fromDoc(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Bouquet(
+      id: doc.id, // pakai ID doc Firestore
+      name: data['name'] ?? '',
+      description: data['description'] ?? '',
+      price: data['price'] ?? 0,
+      images: data['images'] != null
+          ? List<String>.from(data['images'])
+          : [],
+      category: data['category'] ?? '',
+      details: data['details'] ?? '',
+      sellerId: data['sellerId'] ?? '',
+    );
+  }
 }

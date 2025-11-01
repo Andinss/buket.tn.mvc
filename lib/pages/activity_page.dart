@@ -30,12 +30,23 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
   }
 
   void _navigateToHome() {
-    // Navigate to home page using Navigator
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const MainNavigation()),
       (route) => false,
     );
+  }
+
+  String _getPaymentMethodIcon(String? method) {
+    final m = method?.toLowerCase() ?? '';
+    if (m.contains('cod') || m.contains('tempat')) {
+      return '💵';
+    } else if (m.contains('wallet')) {
+      return '📱';
+    } else if (m.contains('bank') || m.contains('transfer')) {
+      return '🏦';
+    }
+    return '💳';
   }
 
   @override
@@ -48,7 +59,14 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Aktivitas Pesanan', style: TextStyle(color: Color(0xFF2D3142), fontWeight: FontWeight.bold, fontSize: 20)),
+        title: const Text(
+          'Aktivitas Pesanan',
+          style: TextStyle(
+            color: Color(0xFF2D3142),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
         centerTitle: true,
         bottom: auth.user == null
             ? null
@@ -102,16 +120,22 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                       children: [
                         const Icon(Icons.error_outline, size: 80, color: Color(0xFFFF6B9D)),
                         const SizedBox(height: 16),
-                        const Text('Terjadi kesalahan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const Text(
+                          'Terjadi kesalahan',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
                         const SizedBox(height: 8),
-                        Text('Error: ${snapshot.error}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text(
+                          'Error: ${snapshot.error}',
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
                       ],
                     ),
                   );
                 }
 
                 final allOrders = snapshot.data ?? [];
-                
+
                 if (allOrders.isEmpty) {
                   return _buildEmptyOrders();
                 }
@@ -147,7 +171,10 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
             child: const Icon(Icons.receipt_long_outlined, size: 80, color: Color(0xFFFF6B9D)),
           ),
           const SizedBox(height: 30),
-          const Text('Belum Ada Pesanan', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
+          const Text(
+            'Belum Ada Pesanan',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
+          ),
           const SizedBox(height: 12),
           Text('Belum ada riwayat pesanan', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
           const SizedBox(height: 30),
@@ -159,7 +186,10 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               elevation: 0,
             ),
-            child: const Text('Mulai Belanja', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+            child: const Text(
+              'Mulai Belanja',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -178,7 +208,10 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
               child: const Icon(Icons.receipt_long_outlined, size: 80, color: Color(0xFFFF6B9D)),
             ),
             const SizedBox(height: 30),
-            Text(emptyMessage, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
+            Text(
+              emptyMessage,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
+            ),
             const SizedBox(height: 12),
             Text('Belum ada pesanan dengan status ini', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
           ],
@@ -206,6 +239,8 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
     final statusColor = getStatusColor(order.status);
     final statusTextColor = getStatusTextColor(order.status);
     final statusLabel = getStatusLabel(order.status);
+    final paymentIcon = _getPaymentMethodIcon(order.paymentMethod);
+    final paymentText = order.paymentMethod ?? '-';
 
     return GestureDetector(
       onTap: () => _showOrderDetailDialog(order),
@@ -227,11 +262,23 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Order #${order.id.substring(0, 8).toUpperCase()}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
-                      const SizedBox(height: 4),
                       Text(
-                        '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year} ${order.createdAt.hour}:${order.createdAt.minute.toString().padLeft(2, '0')}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                        'Order #${order.id.substring(0, 8).toUpperCase()}',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '$paymentIcon $paymentText',
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -303,6 +350,8 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
     final statusColor = getStatusColor(order.status);
     final statusTextColor = getStatusTextColor(order.status);
     final statusLabel = getStatusLabel(order.status);
+    final paymentIcon = _getPaymentMethodIcon(order.paymentMethod);
+    final paymentText = order.paymentMethod ?? '-';
 
     showDialog(
       context: context,
@@ -361,10 +410,11 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                       _buildDetailSection(
                         title: 'Informasi Pesanan',
                         children: [
-                          _buildDetailRow('ID Pesanan', '${order.id.substring(0, 8).toUpperCase()}'),
+                          _buildDetailRow('ID Pesanan', order.id.substring(0, 8).toUpperCase()),
                           _buildDetailRow('Tanggal', '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}'),
                           _buildDetailRow('Waktu', '${order.createdAt.hour}:${order.createdAt.minute.toString().padLeft(2, '0')}'),
                           _buildDetailRow('Status', statusLabel),
+                          _buildDetailRow('Pembayaran', '$paymentIcon $paymentText'),
                         ],
                       ),
                       
@@ -510,14 +560,8 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-          ),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2D3142)),
-          ),
+          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+          Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2D3142))),
         ],
       ),
     );

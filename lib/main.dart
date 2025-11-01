@@ -44,7 +44,13 @@ class MyApp extends StatelessWidget {
         builder: (context, auth, _) {
           if (auth.initializing) return const Scaffold(body: Center(child: CircularProgressIndicator()));
           if (auth.user == null) return const LoginPage();
+          
+          // Set user untuk FavoriteProvider
           Provider.of<FavoriteProvider>(context, listen: false).setUser(auth.user?.uid);
+          
+          // Set user untuk CartProvider (integrasi dengan Firebase)
+          Provider.of<CartProvider>(context, listen: false).setUser(auth.user?.uid);
+          
           return const MainNavigation();
         },
       ),

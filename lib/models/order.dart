@@ -8,6 +8,16 @@ class Order {
   final String status;
   final DateTime createdAt;
 
+  // 🔹 Tambahan field baru
+  final bool isPreOrder;
+  final DateTime? deliveryDate;
+  final String paymentStatus; 
+  final String shippingAddress; 
+  final String notes;
+
+  // 🔹 Tambahan field paymentMethod
+  final String? paymentMethod;
+
   Order({
     required this.id,
     required this.buyerId,
@@ -15,6 +25,12 @@ class Order {
     required this.total,
     required this.status,
     required this.createdAt,
+    this.isPreOrder = false,
+    this.deliveryDate,
+    this.paymentStatus = 'unpaid',
+    this.shippingAddress = '',
+    this.notes = '',
+    this.paymentMethod,
   });
 
   factory Order.fromDoc(DocumentSnapshot doc) {
@@ -65,6 +81,33 @@ class Order {
         createdAtValue = DateTime.now();
       }
 
+      // 🔹 Tambahan parsing untuk field baru
+      bool isPreOrderValue = false;
+      try {
+        isPreOrderValue = d['isPreOrder'] ?? false;
+      } catch (e) {
+        isPreOrderValue = false;
+      }
+
+      DateTime? deliveryDateValue;
+      try {
+        final deliveryDateData = d['deliveryDate'];
+        if (deliveryDateData is Timestamp) {
+          deliveryDateValue = deliveryDateData.toDate();
+        } else if (deliveryDateData is String) {
+          deliveryDateValue = DateTime.tryParse(deliveryDateData);
+        }
+      } catch (e) {
+        deliveryDateValue = null;
+      }
+
+      String? paymentMethodValue;
+      try {
+        paymentMethodValue = d['paymentMethod']?.toString();
+      } catch (e) {
+        paymentMethodValue = null;
+      }
+
       return Order(
         id: doc.id,
         buyerId: d['buyerId']?.toString() ?? 'Unknown',
@@ -72,6 +115,12 @@ class Order {
         total: totalValue,
         status: d['status']?.toString() ?? 'placed',
         createdAt: createdAtValue,
+        isPreOrder: isPreOrderValue,
+        deliveryDate: deliveryDateValue,
+        paymentStatus: d['paymentStatus']?.toString() ?? 'unpaid',
+        shippingAddress: d['shippingAddress']?.toString() ?? '',
+        notes: d['notes']?.toString() ?? '',
+        paymentMethod: paymentMethodValue,
       );
     } catch (e) {
       return Order(
@@ -81,7 +130,28 @@ class Order {
         total: 0,
         status: 'placed',
         createdAt: DateTime.now(),
+        isPreOrder: false,
+        deliveryDate: null,
+        paymentStatus: 'unpaid',
+        shippingAddress: '',
+        notes: '',
+        paymentMethod: null,
       );
     }
   }
+
+  // 🔹 Tambahkan toMap() agar bisa disimpan ke Firestore
+  Map<String, dynamic> toMap() => {
+        'buyerId': buyerId,
+        'items': items,
+        'total': total,
+        'status': status,
+        'createdAt': Timestamp.fromDate(createdAt),
+        'isPreOrder': isPreOrder,
+        'deliveryDate': deliveryDate != null ? Timestamp.fromDate(deliveryDate!) : null,
+        'paymentStatus': paymentStatus,
+        'shippingAddress': shippingAddress,
+        'notes': notes,
+        'paymentMethod': paymentMethod,
+      };
 }

@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/cart_item.dart';
 import '../providers/auth_provider.dart';
-// ignore: unused_import
 import '../services/firebase_service.dart';
 import '../utils/helpers.dart';
 
@@ -32,7 +31,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
   final TextEditingController _cityController = TextEditingController();
   final TextEditingController _postalCodeController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
-  
+
   String _selectedPaymentMethod = 'Transfer Bank';
   final List<String> _paymentMethods = [
     'Transfer Bank',
@@ -44,10 +43,15 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
   void initState() {
     super.initState();
     _loadUserData();
+    _nameController.addListener(() => setState(() {}));
+    _phoneController.addListener(() => setState(() {}));
+    _addressController.addListener(() => setState(() {}));
   }
 
   Future<void> _loadUserData() async {
     try {
+      if (widget.auth.user == null) return;
+
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.auth.user!.uid)
@@ -61,7 +65,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
           _addressController.text = data['address']?.toString() ?? '';
           _cityController.text = data['city']?.toString() ?? '';
           _postalCodeController.text = data['postalCode']?.toString() ?? '';
-          
+
           String paymentMethod = data['paymentMethod']?.toString() ?? 'Transfer Bank';
           _selectedPaymentMethod = paymentMethod.isEmpty ? 'Transfer Bank' : paymentMethod;
         });
@@ -72,7 +76,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
           _addressController.text = widget.auth.address;
           _cityController.text = widget.auth.city;
           _postalCodeController.text = widget.auth.postalCode;
-          _selectedPaymentMethod = widget.auth.paymentMethod.isNotEmpty 
+          _selectedPaymentMethod = widget.auth.paymentMethod.isNotEmpty
               ? (widget.auth.paymentMethod == 'Credit Card' ? 'Transfer Bank' : widget.auth.paymentMethod)
               : 'Transfer Bank';
         });
@@ -85,7 +89,7 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
         _addressController.text = widget.auth.address;
         _cityController.text = widget.auth.city;
         _postalCodeController.text = widget.auth.postalCode;
-        _selectedPaymentMethod = widget.auth.paymentMethod.isNotEmpty 
+        _selectedPaymentMethod = widget.auth.paymentMethod.isNotEmpty
             ? (widget.auth.paymentMethod == 'Credit Card' ? 'Transfer Bank' : widget.auth.paymentMethod)
             : 'Transfer Bank';
       });
@@ -101,6 +105,45 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
     _postalCodeController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _processPlaceOrder() async {
+    try {
+      if (widget.auth.user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Silakan login terlebih dahulu.')),
+        );
+        return;
+      }
+
+      final firebaseService = FirebaseService();
+      final uid = widget.auth.user!.uid;
+
+      await firebaseService.placeOrder(
+        uid,
+        widget.items,
+        widget.total.toDouble(),
+        _selectedPaymentMethod, // argumen ke-4
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pesanan berhasil dibuat!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      debugPrint('Gagal membuat pesanan: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal membuat pesanan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -138,18 +181,16 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                 ],
               ),
             ),
-            
             Expanded(
               child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 16),
-                    
                     _buildSectionHeader('Informasi Pengiriman'),
                     const SizedBox(height: 16),
-                    
                     _buildFormField(
                       label: 'Nama Penerima',
                       controller: _nameController,
@@ -157,7 +198,6 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                       hintText: 'Masukkan nama penerima',
                     ),
                     const SizedBox(height: 12),
-                    
                     _buildFormField(
                       label: 'Nomor Telepon',
                       controller: _phoneController,
@@ -166,7 +206,6 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                       keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: 12),
-                    
                     _buildFormField(
                       label: 'Alamat Lengkap',
                       controller: _addressController,
@@ -175,7 +214,6 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                       maxLines: 2,
                     ),
                     const SizedBox(height: 12),
-                    
                     _buildFormField(
                       label: 'Kota/Kabupaten',
                       controller: _cityController,
@@ -183,7 +221,6 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                       hintText: 'Masukkan kota/kabupaten',
                     ),
                     const SizedBox(height: 12),
-                    
                     _buildFormField(
                       label: 'Kode Pos',
                       controller: _postalCodeController,
@@ -192,7 +229,6 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                       keyboardType: TextInputType.number,
                     ),
                     const SizedBox(height: 12),
-                    
                     _buildFormField(
                       label: 'Catatan (Opsional)',
                       controller: _notesController,
@@ -200,31 +236,23 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                       hintText: 'Tambahkan catatan untuk kurir',
                       maxLines: 2,
                     ),
-                    
                     const SizedBox(height: 20),
                     _buildDivider(),
                     const SizedBox(height: 20),
-                    
                     _buildSectionHeader('Metode Pembayaran'),
                     const SizedBox(height: 16),
-                    
                     ..._buildPaymentMethods(),
-                    
                     const SizedBox(height: 20),
                     _buildDivider(),
                     const SizedBox(height: 20),
-                    
                     _buildSectionHeader('Ringkasan Pesanan'),
                     const SizedBox(height: 16),
-                    
                     _buildOrderSummary(),
-                    
                     const SizedBox(height: 20),
                   ],
                 ),
               ),
             ),
-            
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -265,22 +293,22 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _nameController.text.isEmpty || 
-                                _phoneController.text.isEmpty || 
-                                _addressController.text.isEmpty
+                      onPressed: _nameController.text.isEmpty ||
+                              _phoneController.text.isEmpty ||
+                              _addressController.text.isEmpty
                           ? null
-                          : () {
+                          : () async {
                               widget.onConfirm(
-                                _phoneController.text, 
+                                _phoneController.text,
                                 _addressController.text,
                                 _cityController.text,
                                 _postalCodeController.text,
-                                _selectedPaymentMethod
+                                _selectedPaymentMethod,
                               );
+                              await _processPlaceOrder();
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFF6B9D),
@@ -309,16 +337,14 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFF2D3142),
-      ),
-    );
-  }
+  Widget _buildSectionHeader(String title) => Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF2D3142),
+        ),
+      );
 
   Widget _buildFormField({
     required String label,
@@ -331,14 +357,11 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2D3142),
-          ),
-        ),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF2D3142))),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
@@ -355,102 +378,95 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFFF6B9D), width: 2),
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildDivider() {
-    return Divider(
-      color: Colors.grey.shade300,
-      thickness: 1,
-    );
-  }
+  Widget _buildDivider() => Divider(color: Colors.grey.shade300, thickness: 1);
 
-  List<Widget> _buildPaymentMethods() {
-    return _paymentMethods.map((method) {
-      final bool isSelected = _selectedPaymentMethod == method;
-      
-      String description = '';
-      if (method == 'Transfer Bank') {
-        description = 'BCA, BNI, Mandiri, BRI';
-      } else if (method == 'E-Wallet') {
-        description = 'Gopay, OVO, Dana, LinkAja';
-      } else if (method == 'Bayar di Tempat (COD)') {
-        description = 'Bayar saat barang diterima';
-      }
-      
-      return GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedPaymentMethod = method;
-          });
-        },
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFFFF0F5) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected ? const Color(0xFFFF6B9D) : Colors.grey.shade300,
-              width: isSelected ? 2 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isSelected ? const Color(0xFFFF6B9D) : Colors.transparent,
-                  border: Border.all(
-                    color: isSelected ? const Color(0xFFFF6B9D) : Colors.grey.shade400,
-                    width: 2,
-                  ),
-                ),
-                child: isSelected
-                    ? const Icon(Icons.check, size: 12, color: Colors.white)
-                    : null,
+  List<Widget> _buildPaymentMethods() => _paymentMethods.map((method) {
+        final bool isSelected = _selectedPaymentMethod == method;
+        String description = '';
+        if (method == 'Transfer Bank') {
+          description = 'BCA, BNI, Mandiri, BRI';
+        } else if (method == 'E-Wallet') {
+          description = 'Gopay, OVO, Dana, LinkAja';
+        } else if (method == 'Bayar di Tempat (COD)') {
+          description = 'Bayar saat barang diterima';
+        }
+
+        return GestureDetector(
+          onTap: () => setState(() => _selectedPaymentMethod = method),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isSelected ? const Color(0xFFFFF0F5) : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected
+                    ? const Color(0xFFFF6B9D)
+                    : Colors.grey.shade300,
+                width: isSelected ? 2 : 1,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      method,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? const Color(0xFFFF6B9D) : const Color(0xFF2D3142),
-                      ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected ? const Color(0xFFFF6B9D) : Colors.transparent,
+                    border: Border.all(
+                      color: isSelected
+                          ? const Color(0xFFFF6B9D)
+                          : Colors.grey.shade400,
+                      width: 2,
                     ),
-                    if (description.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                  ),
+                  child: isSelected
+                      ? const Icon(Icons.check, size: 12, color: Colors.white)
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        description,
+                        method,
                         style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected
+                              ? const Color(0xFFFF6B9D)
+                              : const Color(0xFF2D3142),
                         ),
                       ),
+                      if (description.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            description,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
-    }).toList();
-  }
+        );
+      }).toList();
 
   Widget _buildOrderSummary() {
     return Container(
@@ -466,86 +482,64 @@ class _OrderConfirmationDialogState extends State<OrderConfirmationDialog> {
             children: [
               Expanded(
                 flex: 2,
-                child: Text(
-                  'Produk',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D3142),
-                  ),
-                ),
+                child: Text('Produk',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D3142))),
               ),
               Expanded(
-                child: Text(
-                  'Subtotal',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D3142),
-                  ),
-                ),
+                child: Text('Subtotal',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D3142))),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          
           ...widget.items.map((item) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    '${item.bouquet.name} × ${item.quantity}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF2D3142),
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Text('${item.bouquet.name} × ${item.quantity}',
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF2D3142))),
                     ),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    formatRupiah(item.price * item.quantity),
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF2D3142),
+                    Expanded(
+                      child: Text(formatRupiah(item.price * item.quantity),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF2D3142))),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          )),
-          
+              )),
           const SizedBox(height: 12),
           _buildDivider(),
           const SizedBox(height: 12),
-          
           Row(
             children: [
               const Expanded(
                 flex: 2,
-                child: Text(
-                  'Total',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D3142),
-                  ),
-                ),
+                child: Text('Total',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D3142))),
               ),
               Expanded(
-                child: Text(
-                  formatRupiah(widget.total),
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFFF6B9D),
-                  ),
-                ),
+                child: Text(formatRupiah(widget.total),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFFF6B9D))),
               ),
             ],
           ),

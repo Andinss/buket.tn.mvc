@@ -207,7 +207,7 @@ class SellerAnalyticsPage extends StatelessWidget {
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
               ],
             ),
           );

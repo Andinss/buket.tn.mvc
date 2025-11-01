@@ -1,10 +1,9 @@
-import 'package:buket_tn/models/bouquet.dart';
+import 'package:buket.tn.mvc/models/bouquet.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/bouquet_provider.dart';
-// ignore: unused_import
 import '../providers/cart_provider.dart';
 import '../providers/favorite_provider.dart';
 import '../utils/helpers.dart';
@@ -28,7 +27,6 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     Future.delayed(Duration.zero, () {
-      // ignore: unused_local_variable
       final auth = Provider.of<AuthProvider>(context, listen: false);
       if (mounted) setState(() {});
     });
@@ -41,22 +39,50 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
+  List<Bouquet> _filterBouquets(List<Bouquet> allBouquets) {
+    // Search filter
+    List<Bouquet> filtered = allBouquets.where((b) =>
+      b.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
+      b.description.toLowerCase().contains(searchQuery.toLowerCase()) ||
+      b.category.toLowerCase().contains(searchQuery.toLowerCase())
+    ).toList();
+
+    // Category filter
+    if (selectedCategory == 'All') {
+      return filtered;
+    } else if (selectedCategory == 'Popular') {
+      // Sort by price descending (anggap harga tinggi = popular)
+      filtered.sort((a, b) => b.price.compareTo(a.price));
+      return filtered;
+    } else if (selectedCategory == 'Recent') {
+      // Return as is (sudah diurutkan dari Firebase berdasarkan createdAt)
+      return filtered;
+    } else if (selectedCategory == 'Recommended') {
+      // Sort by category (prioritas Elegant)
+      filtered.sort((a, b) {
+        if (a.category == 'Elegant' && b.category != 'Elegant') return -1;
+        if (a.category != 'Elegant' && b.category == 'Elegant') return 1;
+        return 0;
+      });
+      return filtered;
+    }
+
+    return filtered;
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
     final allBouquets = Provider.of<BouquetProvider>(context).bouquets;
     final favoriteProvider = Provider.of<FavoriteProvider>(context);
+    final cartProvider = Provider.of<CartProvider>(context);
 
     String displayName = auth.user?.displayName ?? 'User';
     if (displayName == 'User' && auth.user?.email != null) {
       displayName = auth.user!.email!.split('@').first;
     }
 
-    final filteredBouquets = allBouquets.where((b) =>
-      b.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
-      b.description.toLowerCase().contains(searchQuery.toLowerCase()) ||
-      b.category.toLowerCase().contains(searchQuery.toLowerCase())
-    ).toList();
+    final filteredBouquets = _filterBouquets(allBouquets);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
@@ -69,12 +95,15 @@ class _HomePageState extends State<HomePage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Hello ${displayName.split(' ').first}',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2D3142),
+                  Expanded(
+                    child: Text(
+                      'Hello ${displayName.split(' ').first}',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D3142),
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   GestureDetector(
@@ -234,7 +263,7 @@ class _HomePageState extends State<HomePage> {
                               (context, index) {
                                 final bouquet = filteredBouquets[index];
                                 final isFavorite = favoriteProvider.isFavorite(bouquet.id);
-                                return _buildProductCard(context, bouquet, isFavorite, favoriteProvider);
+                                return _buildProductCard(context, bouquet, isFavorite, favoriteProvider, cartProvider);
                               },
                               childCount: filteredBouquets.length,
                             ),
@@ -251,7 +280,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildProductCard(BuildContext context, Bouquet bouquet, bool isFavorite, FavoriteProvider favoriteProvider) {
+  Widget _buildProductCard(BuildContext context, Bouquet bouquet, bool isFavorite, FavoriteProvider favoriteProvider, CartProvider cartProvider) {
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => DetailPage(bouquet: bouquet))),
       child: Container(
@@ -324,10 +353,21 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(color: Color(0xFFFF6B9D), shape: BoxShape.circle),
-                          child: const Icon(Icons.add, color: Colors.white, size: 14),
+                        GestureDetector(
+                          onTap: () {
+                            cartProvider.addItem(bouquet, 1);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('${bouquet.name} ditambahkan ke keranjang'),
+                                backgroundColor: const Color(0xFFFF6B9D),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(color: Color(0xFFFF6B9D), shape: BoxShape.circle),
+                            child: const Icon(Icons.add, color: Colors.white, size: 14),
+                          ),
                         ),
                       ],
                     ),
